@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Research",
+  "version": "0.1.0",
+  "description": "Transform your browser into an intelligent research partner",
+
+  "permissions": ["storage", "activeTab"],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {}
+  },
+
+  "icons": {}
+}
