@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Research Insights</title>
+    <link
+      rel="stylesheet"
+      href="popup.css"
+    />
+    <script
+      src="popup.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div class="popup-container">
+      <header class="popup-header">
+        <div class="header-content">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <span class="logo-text">Research Insights</span>
+          </div>
+          <div class="status-indicator">
+            <span class="status-dot ready"></span>
+            <span class="status-text">Ready</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="popup-main">
+        <section class="page-detection">
+          <span class="page-detection-icon">✓</span>
+          <div class="page-detection-text">
+            <div class="page-detection-title">arXiv paper detected</div>
+            <div class="page-detection-subtitle">
+              Ready to analyze this paper
+            </div>
+          </div>
+        </section>
+
+        <section class="actions-section">
+          <button
+            class="action-btn primary"
+            id="analyzeBtn"
+          >
+            <span class="btn-icon">🔍</span>
+            <div class="btn-content">
+              <span class="btn-text">Analyze Current Page</span>
+            </div>
+          </button>
+
+          <button class="action-btn secondary">
+            <span class="btn-icon">📊</span>
+            <div class="btn-content">
+              <span class="btn-text">View Insights Dashboard</span>
+            </div>
+          </button>
+        </section>
+
+        <section class="stats-section">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number">24</div>
+              <div class="stat-label">Analyzed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">12</div>
+              <div class="stat-label">Connections</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">87%</div>
+              <div class="stat-label">Confidence</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="recent-section">
+          <h3 class="section-title">Most Recent Insight</h3>
+          <div class="insights-list">
+            <div class="insight-item">
+              <div class="insight-header">
+                <div class="insight-title">
+                  Transformer Architecture for NLP Tasks
+                </div>
+                <span class="connection-badge">2</span>
+              </div>
+              <div class="insight-text">
+                Introduces self-attention mechanism that allows models to weigh
+                importance of different words...
+              </div>
+              <div class="insight-meta">
+                <span>📅 2 days ago</span>
+                <span>📈 92% confidence</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="popup-footer">
+        <div class="footer-top">
+          <div class="footer-actions">
+            <button
+              class="footer-btn"
+              id="settingsBtn"
+              title="Settings"
+            >
+              ⚙️
+            </button>
+            <button
+              class="footer-btn"
+              id="exportBtn"
+              title="Export Data"
+            >
+              📥
+            </button>
+            <button
+              class="footer-btn"
+              id="helpBtn"
+              title="Help & Documentation"
+            >
+              ❓
+            </button>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div
+      id="settingsModal"
+      class="modal"
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">⚙️ Settings</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-section">
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">Auto-analyze papers</div>
+                <div class="setting-description">
+                  Automatically analyze papers when visiting supported sites
+                </div>
+              </div>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  id="autoAnalyze"
+                  checked
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">Summary length preference</div>
+                <div class="setting-description">
+                  Choose how detailed you want paper summaries
+                </div>
+              </div>
+              <select
+                id="summaryLength"
+                class="setting-select"
+              >
+                <option value="short">Short (Quick overview)</option>
+                <option
+                  value="medium"
+                  selected
+                >
+                  Medium (Balanced)
+                </option>
+                <option value="long">Long (Comprehensive)</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">Connection detection</div>
+                <div class="setting-description">
+                  Find relationships between analyzed papers
+                </div>
+              </div>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  id="connectionDetection"
+                  checked
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="danger-zone">
+            <button
+              id="clearDataBtn"
+              class="danger-btn"
+            >
+              🗑️ Clear All Data
+            </button>
+            <div class="danger-warning">
+              This will permanently delete all analyzed papers and insights.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div
+      id="exportModal"
+      class="modal"
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">📥 Export Data</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="export-info">
+            <p>Export the analysis from the current paper as a PDF file.</p>
+          </div>
+
+          <div class="export-preview">
+            <div class="preview-title">Export will include:</div>
+            <ul class="export-list">
+              <li>✓ Paper title and metadata</li>
+              <li>✓ Key findings</li>
+              <li>✓ Research methodology</li>
+              <li>✓ Research gaps identified</li>
+              <li>✓ Related papers and connections</li>
+            </ul>
+          </div>
+
+          <div class="export-actions">
+            <button
+              id="exportPdfBtn"
+              class="action-btn primary"
+            >
+              <span class="btn-icon">📄</span>
+              <span class="btn-text">Export as PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div
+      id="helpModal"
+      class="modal"
+    >
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2 class="modal-title">❓ Help & Documentation</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="help-content-single">
+            <h3>How to Use Research Insights</h3>
+            <ol class="help-steps">
+              <li>
+                <strong>Visit a supported research site</strong>
+                <p>
+                  Navigate to arXiv, PubMed, IEEE Xplore, Google Scholar,
+                  Springer, or ACM Digital Library
+                </p>
+              </li>
+              <li>
+                <strong>Open a research paper</strong>
+                <p>
+                  The extension will automatically detect the paper and show a
+                  green indicator
+                </p>
+              </li>
+              <li>
+                <strong>Click "Analyze Current Page"</strong>
+                <p>
+                  Processing takes about 30 seconds to extract insights
+                  including key findings, methodology, and research gaps
+                </p>
+              </li>
+              <li>
+                <strong>Review insights and connections</strong>
+                <p>
+                  View the analysis and discover how this paper relates to
+                  previously analyzed papers
+                </p>
+              </li>
+              <li>
+                <strong>Export your analysis</strong>
+                <p>
+                  Save the current paper's analysis as a PDF for future
+                  reference
+                </p>
+              </li>
+            </ol>
+
+            <div class="help-section">
+              <h3>Keyboard Shortcuts</h3>
+              <div class="shortcuts-list">
+                <div class="shortcut-item">
+                  <div class="shortcut-keys">
+                    <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+                  </div>
+                  <div class="shortcut-desc">Analyze current page</div>
+                </div>
+                <div class="shortcut-item">
+                  <div class="shortcut-keys">
+                    <kbd>Ctrl</kbd> + <kbd>D</kbd>
+                  </div>
+                  <div class="shortcut-desc">Open insights dashboard</div>
+                </div>
+                <div class="shortcut-item">
+                  <div class="shortcut-keys">
+                    <kbd>Ctrl</kbd> + <kbd>E</kbd>
+                  </div>
+                  <div class="shortcut-desc">Export data</div>
+                </div>
+                <div class="shortcut-item">
+                  <div class="shortcut-keys">
+                    <kbd>Esc</kbd>
+                  </div>
+                  <div class="shortcut-desc">Close modal</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
