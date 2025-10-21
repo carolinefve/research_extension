@@ -321,6 +321,57 @@ body {
   color: var(--text);
 }
 
+/* NEW: Trajectory Suggestions Styles */
+.trajectories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trajectory-item {
+  background: var(--bg-gray);
+  border-left: 4px solid var(--warning);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  transition: all 0.2s;
+}
+
+.trajectory-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.trajectory-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--warning);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.trajectory-content {
+  display: flex;
+  align-items: flex-start;
+}
+
+.trajectory-text {
+  flex: 1;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.trajectory-badge {
+  background: var(--warning);
+}
+
 /* Loading States */
 .loading-text {
   color: var(--text-lighter);

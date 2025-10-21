@@ -45,6 +45,7 @@ async function checkAPIAvailability() {
   }
 }
 
+// FIXED: Simplified checkSiteDetection without non-existent elements
 async function checkSiteDetection() {
   try {
     const [tab] = await chrome.tabs.query({
@@ -56,29 +57,18 @@ async function checkSiteDetection() {
       action: "detectSite",
     });
 
-    const detectionSection = document.querySelector(".page-detection");
-    const detectionTitle = document.querySelector(".page-detection-title");
-    const detectionSubtitle = document.querySelector(
-      ".page-detection-subtitle"
-    );
-
+    // Simply enable/disable the analyze button based on detection
     if (response && response.detected) {
-      detectionSection.style.display = "flex";
-      detectionTitle.textContent = `${response.site} paper detected`;
-      detectionSubtitle.textContent = "Ready to analyze this paper";
       analyzeBtn.disabled = false;
+      console.log(`[Research Insights] Detected ${response.site} paper`);
     } else {
-      detectionSection.style.display = "flex";
-      detectionSection.style.background =
-        "linear-gradient(135deg, #fef3c7, #fde68a)";
-      detectionSection.style.borderColor = "#f59e0b";
-      detectionTitle.textContent = "No supported site detected";
-      detectionSubtitle.textContent =
-        "Visit arXiv, PubMed, IEEE, or Google Scholar";
       analyzeBtn.disabled = true;
+      console.log("[Research Insights] No supported site detected");
     }
   } catch (error) {
     console.error("Failed to detect site:", error);
+    // Don't disable button on error - might just be wrong page type
+    analyzeBtn.disabled = false;
   }
 }
 
@@ -320,6 +310,7 @@ clearDataBtn.addEventListener("click", async () => {
   }
 });
 
+// FIXED: Updated formatAnalysisForExport to include trajectory suggestions
 function formatAnalysisForExport(analysis) {
   return `
 Research Paper Analysis
@@ -338,8 +329,15 @@ ${analysis.keyFindings.map((f, i) => `${i + 1}. ${f}`).join("\n")}
 METHODOLOGY
 ${analysis.methodology}
 
-RESEARCH GAPS
+RESEARCH GAPS & LIMITATIONS
 ${analysis.researchGaps.map((g, i) => `${i + 1}. ${g}`).join("\n")}
+
+RESEARCH TRAJECTORY & NEXT STEPS
+${
+  analysis.trajectorySuggestions && analysis.trajectorySuggestions.length > 0
+    ? analysis.trajectorySuggestions.map((t, i) => `${i + 1}. ${t}`).join("\n")
+    : "No trajectory suggestions generated"
+}
   `.trim();
 }
 

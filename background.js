@@ -2,15 +2,18 @@ class PaperAnalyzer {
   constructor() {
     this.summarizerSession = null;
     this.writerSession = null;
+    this.languageModelSession = null;
   }
 
   async initializeAPIs() {
     try {
       console.log("[Research Insights] Checking API availability...");
 
-      // Check if APIs exist
+      // Check if required APIs exist
       if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
-        throw new Error("Chrome AI APIs not found in service worker context");
+        throw new Error(
+          "Required Chrome AI APIs (Summarizer, Writer) not found"
+        );
       }
 
       // Check Summarizer availability
@@ -27,9 +30,9 @@ class PaperAnalyzer {
         writerAvailability
       );
 
-      // Check if APIs are ready or can be downloaded
+      // Check if APIs are ready
       if (summarizerAvailability === "no" || writerAvailability === "no") {
-        throw new Error("Chrome AI APIs not available on this system");
+        throw new Error("Required Chrome AI APIs not available on this system");
       }
 
       // Create Summarizer session
@@ -70,6 +73,64 @@ class PaperAnalyzer {
       });
       console.log("[Research Insights] ✅ Writer session created");
 
+      // Create Prompt session
+      if (typeof LanguageModel !== "undefined") {
+        try {
+          const languageModelAvailability = await LanguageModel.availability();
+          console.log(
+            "[Research Insights] LanguageModel availability:",
+            languageModelAvailability
+          );
+
+          if (languageModelAvailability !== "no") {
+            console.log(
+              "[Research Insights] Creating LanguageModel session..."
+            );
+
+            // Get default parameters
+            const params = await LanguageModel.params();
+
+            this.languageModelSession = await LanguageModel.create({
+              systemPrompt: `You are an expert research advisor analyzing academic papers. Your role is to provide specific, actionable research suggestions that build upon the work presented. When suggesting research directions:
+- Be concrete and specific with methodology suggestions
+- Suggest realistic next steps that researchers can actually pursue
+- Consider practical constraints like data availability and feasibility
+- Identify potential collaborations or interdisciplinary approaches
+- Focus on high-impact research directions that advance the field
+Keep suggestions clear, actionable, and well-reasoned.`,
+              temperature: params.defaultTemperature,
+              topK: params.defaultTopK,
+              monitor(m) {
+                m.addEventListener("downloadprogress", (e) => {
+                  console.log(
+                    `[Research Insights] LanguageModel download: ${Math.round(
+                      e.loaded * 100
+                    )}%`
+                  );
+                });
+              },
+            });
+            console.log("[Research Insights] ✅ LanguageModel session created");
+          } else {
+            console.log(
+              "[Research Insights] ⚠️ LanguageModel not ready, trajectory suggestions will be unavailable"
+            );
+          }
+        } catch (languageModelError) {
+          console.warn(
+            "[Research Insights] ⚠️ Failed to initialize LanguageModel:",
+            languageModelError.message
+          );
+          console.log(
+            "[Research Insights] Extension will work without trajectory suggestions"
+          );
+        }
+      } else {
+        console.log(
+          "[Research Insights] ⚠️ LanguageModel API not found, trajectory suggestions will be unavailable"
+        );
+      }
+
       return true;
     } catch (error) {
       console.error(
@@ -93,12 +154,14 @@ class PaperAnalyzer {
       keyFindings: [],
       methodology: "",
       researchGaps: [],
+      trajectorySuggestions: [],
       confidence: 0,
       summary: "",
     };
 
+    // Calculate total steps based on available APIs
+    const totalSteps = this.languageModelSession ? 5 : 4;
     let successfulSteps = 0;
-    const totalSteps = 4;
 
     try {
       // Step 1: Generate summary using Summarizer API
@@ -140,13 +203,54 @@ class PaperAnalyzer {
       // Step 4: Identify research gaps using Writer API
       console.log("[Research Insights] Step 4: Identifying research gaps...");
       if (this.writerSession) {
-        const gapsPrompt = `Based on this research paper summary, identify 2-3 research gaps or opportunities for future work. Focus on what the paper suggests needs further investigation:\n\n${results.summary}`;
+        const gapsPrompt = `Based on this research paper summary, identify 2-3 research gaps, limitations, or areas the authors mention need further investigation:\n\n${results.summary}`;
         const gapsText = await this.writerSession.write(gapsPrompt);
         results.researchGaps = this.parseFindings(gapsText);
         successfulSteps++;
         console.log(
           "[Research Insights] Research gaps identified:",
           results.researchGaps.length
+        );
+      }
+
+      // Step 5: Generate trajectory suggestions using LanguageModel (OPTIONAL)
+      if (this.languageModelSession) {
+        console.log(
+          "[Research Insights] Step 5: Generating research trajectory suggestions..."
+        );
+        try {
+          const trajectoryPrompt = `Based on this research paper and its identified gaps, suggest 3-4 specific, actionable research directions that could build upon this work.
+
+Paper Summary:
+${results.summary}
+
+Key Findings:
+${results.keyFindings.map((f, i) => `${i + 1}. ${f}`).join("\n")}
+
+Identified Gaps:
+${results.researchGaps.map((g, i) => `${i + 1}. ${g}`).join("\n")}
+
+Provide concrete, feasible next steps that researchers could pursue. Each suggestion should be specific enough to guide actual research planning. Format as a numbered list.`;
+
+          const trajectoriesText = await this.languageModelSession.prompt(
+            trajectoryPrompt
+          );
+          results.trajectorySuggestions = this.parseFindings(trajectoriesText);
+          successfulSteps++;
+          console.log(
+            "[Research Insights] Trajectory suggestions generated:",
+            results.trajectorySuggestions.length
+          );
+        } catch (languageModelError) {
+          console.warn(
+            "[Research Insights] Failed to generate trajectories:",
+            languageModelError.message
+          );
+          // Continue without trajectories
+        }
+      } else {
+        console.log(
+          "[Research Insights] ⚠️ Skipping trajectory suggestions (LanguageModel not available)"
         );
       }
 
@@ -165,7 +269,6 @@ class PaperAnalyzer {
   }
 
   parseFindings(text) {
-    // Split text into individual findings (by numbers, bullets, or newlines)
     const lines = text
       .split(/\n+/)
       .map((line) =>
@@ -177,7 +280,7 @@ class PaperAnalyzer {
       .filter((line) => line.length > 20);
 
     console.log("[Research Insights] Parsed findings:", lines.length);
-    return lines.slice(0, 3); // Return max 3 findings
+    return lines.slice(0, 4);
   }
 
   async cleanup() {
@@ -187,6 +290,9 @@ class PaperAnalyzer {
     }
     if (this.writerSession) {
       this.writerSession.destroy();
+    }
+    if (this.languageModelSession) {
+      this.languageModelSession.destroy();
     }
   }
 }
@@ -205,7 +311,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.error("[Research Insights] Message handler error:", err);
         sendResponse({ success: false, error: err.message });
       });
-    return true; // Keep channel open for async response
+    return true;
   } else if (request.action === "checkAPIAvailability") {
     checkAPIs()
       .then(sendResponse)
@@ -221,7 +327,6 @@ async function handleAnalysis(paperData) {
   try {
     console.log("[Research Insights] Handling analysis request");
 
-    // Initialize APIs if not already done
     const initialized = await analyzer.initializeAPIs();
     if (!initialized) {
       return {
@@ -231,10 +336,8 @@ async function handleAnalysis(paperData) {
       };
     }
 
-    // Analyze the paper
     const result = await analyzer.analyzePaper(paperData);
 
-    // Store result in chrome.storage
     if (result.success) {
       await saveAnalysis(result.data);
       console.log("[Research Insights] Analysis saved to storage");
@@ -252,11 +355,11 @@ async function handleAnalysis(paperData) {
 
 async function checkAPIs() {
   try {
-    // Check if APIs exist first
+    // Check required APIs
     if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
       return {
         available: false,
-        error: "Chrome AI APIs not available in service worker",
+        error: "Required Chrome AI APIs not available in service worker",
         mode: "unavailable",
       };
     }
@@ -264,10 +367,17 @@ async function checkAPIs() {
     const summarizerAvailability = await Summarizer.availability();
     const writerAvailability = await Writer.availability();
 
+    // FIXED: Check LanguageModel instead of Prompt
+    let languageModelAvailability = "no";
+    if (typeof LanguageModel !== "undefined") {
+      languageModelAvailability = await LanguageModel.availability();
+    }
+
     const result = {
       available: summarizerAvailability !== "no" && writerAvailability !== "no",
       summarizer: summarizerAvailability,
       writer: writerAvailability,
+      languageModel: languageModelAvailability,
       mode: "real",
     };
 
@@ -286,9 +396,8 @@ async function checkAPIs() {
 async function saveAnalysis(analysisData) {
   try {
     const { analyses = [] } = await chrome.storage.local.get("analyses");
-    analyses.unshift(analysisData); // Add to beginning
+    analyses.unshift(analysisData);
 
-    // Keep only last 50 analyses
     if (analyses.length > 50) {
       analyses.length = 50;
     }
@@ -303,7 +412,6 @@ async function saveAnalysis(analysisData) {
   }
 }
 
-// Cleanup on extension unload
 chrome.runtime.onSuspend.addListener(() => {
   console.log("[Research Insights] Extension suspending, cleaning up");
   analyzer.cleanup();
@@ -311,7 +419,6 @@ chrome.runtime.onSuspend.addListener(() => {
 
 console.log("[Research Insights] Background service worker initialized");
 
-// Safely check API availability on startup
 (async () => {
   try {
     console.log("[Research Insights] Checking initial API availability...");

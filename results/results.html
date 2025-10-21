@@ -78,6 +78,19 @@
                 <div class="stat-label">Research Gaps</div>
               </div>
             </div>
+            <!-- NEW: Add trajectory count stat -->
+            <div class="stat-item">
+              <span class="stat-icon">🚀</span>
+              <div>
+                <div
+                  class="stat-value"
+                  id="trajectoriesCount"
+                >
+                  --
+                </div>
+                <div class="stat-label">Next Steps</div>
+              </div>
+            </div>
           </div>
 
           <div class="sidebar-section">
@@ -123,7 +136,7 @@
 
           <section class="analysis-section">
             <div class="section-header">
-              <h2>📝 Summary</h2>
+              <h2>📄 Summary</h2>
             </div>
             <div class="content-card">
               <p
@@ -171,7 +184,7 @@
 
           <section class="analysis-section">
             <div class="section-header">
-              <h2>💡 Research Gaps & Future Work</h2>
+              <h2>💡 Research Gaps & Limitations</h2>
               <span
                 class="section-badge"
                 id="gapsBadge"
@@ -184,7 +197,28 @@
             >
               <div class="loading-placeholder">
                 <div class="loading-spinner"></div>
-                <p>Identifying research opportunities...</p>
+                <p>Identifying research gaps...</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- NEW SECTION: Research Trajectory Suggestions -->
+          <section class="analysis-section">
+            <div class="section-header">
+              <h2>🚀 Research Trajectory & Next Steps</h2>
+              <span
+                class="section-badge trajectory-badge"
+                id="trajectoriesBadge"
+                >0</span
+              >
+            </div>
+            <div
+              class="trajectories-list"
+              id="trajectoriesList"
+            >
+              <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>Generating research trajectory suggestions...</p>
               </div>
             </div>
           </section>
