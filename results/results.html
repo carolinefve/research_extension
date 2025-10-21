@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Analysis Results - Research Insights</title>
+    <link
+      rel="stylesheet"
+      href="results.css"
+    />
+    <script src="/extensions/jspdf/dist/jspdf.umd.min.js"></script>
+    <script
+      src="results.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div class="results-container">
+      <header class="results-header">
+        <div class="header-left">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <span class="logo-text">Research Insights</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button
+            class="header-btn"
+            id="exportBtn"
+            title="Export Analysis"
+          >
+            <span>📥</span>
+            <span>Export</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="results-content">
+        <aside class="results-sidebar">
+          <div class="sidebar-section">
+            <h3>Quick Stats</h3>
+            <div class="stat-item">
+              <span class="stat-icon">📊</span>
+              <div>
+                <div
+                  class="stat-value"
+                  id="confidenceScore"
+                >
+                  --
+                </div>
+                <div class="stat-label">Confidence</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon">🔍</span>
+              <div>
+                <div
+                  class="stat-value"
+                  id="findingsCount"
+                >
+                  --
+                </div>
+                <div class="stat-label">Key Findings</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon">🔬</span>
+              <div>
+                <div
+                  class="stat-value"
+                  id="gapsCount"
+                >
+                  --
+                </div>
+                <div class="stat-label">Research Gaps</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sidebar-section">
+            <h3>Paper Info</h3>
+            <div class="paper-meta">
+              <div class="meta-item">
+                <span class="meta-label">Analyzed</span>
+                <span
+                  class="meta-value"
+                  id="analyzedTime"
+                  >--</span
+                >
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Source</span>
+                <span
+                  class="meta-value"
+                  id="paperSource"
+                  >--</span
+                >
+              </div>
+            </div>
+            <a
+              href="#"
+              id="originalLink"
+              class="original-link"
+              target="_blank"
+            >
+              View Original Paper →
+            </a>
+          </div>
+        </aside>
+
+        <main class="results-main">
+          <section class="paper-title-section">
+            <h1
+              class="paper-title"
+              id="paperTitle"
+            >
+              Loading analysis...
+            </h1>
+          </section>
+
+          <section class="analysis-section">
+            <div class="section-header">
+              <h2>📝 Summary</h2>
+            </div>
+            <div class="content-card">
+              <p
+                id="summaryContent"
+                class="loading-text"
+              >
+                Analyzing paper content...
+              </p>
+            </div>
+          </section>
+
+          <section class="analysis-section">
+            <div class="section-header">
+              <h2>🎯 Key Findings</h2>
+              <span
+                class="section-badge"
+                id="findingsBadge"
+                >0</span
+              >
+            </div>
+            <div
+              class="findings-list"
+              id="findingsList"
+            >
+              <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>Extracting key findings...</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="analysis-section">
+            <div class="section-header">
+              <h2>🔬 Research Methodology</h2>
+            </div>
+            <div class="content-card">
+              <p
+                id="methodologyContent"
+                class="loading-text"
+              >
+                Analyzing research approach...
+              </p>
+            </div>
+          </section>
+
+          <section class="analysis-section">
+            <div class="section-header">
+              <h2>💡 Research Gaps & Future Work</h2>
+              <span
+                class="section-badge"
+                id="gapsBadge"
+                >0</span
+              >
+            </div>
+            <div
+              class="gaps-list"
+              id="gapsList"
+            >
+              <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>Identifying research opportunities...</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

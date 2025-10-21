@@ -1,15 +1,42 @@
 {
   "manifest_version": 3,
-  "name": "Research",
+  "name": "Research Insights",
   "version": "0.1.0",
   "description": "Transform your browser into an intelligent research partner",
 
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "windows"],
 
-  "action": {
-    "default_popup": "popup/popup.html",
-    "default_icon": {}
+  "host_permissions": ["https://arxiv.org/*"],
+
+  "background": {
+    "service_worker": "background.js"
   },
 
-  "icons": {}
+  "content_scripts": [
+    {
+      "matches": [
+        "https://arxiv.org/*",
+        "https://pubmed.ncbi.nlm.nih.gov/*",
+        "https://ieeexplore.ieee.org/*",
+        "https://scholar.google.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "results/results.html",
+        "results/results.css",
+        "results/results.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

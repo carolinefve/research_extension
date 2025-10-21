@@ -125,36 +125,6 @@ body {
   letter-spacing: 0.03rem;
 }
 
-.page-detection {
-  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-  border: 1px solid var(--success);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.88rem;
-  display: flex;
-  align-items: center;
-  font-size: 0.81rem;
-  color: #065f46;
-  gap: 0.5rem;
-}
-
-.page-detection-icon {
-  font-size: 1.13rem;
-}
-
-.page-detection-text {
-  flex: 1;
-}
-
-.page-detection-title {
-  font-weight: 600;
-  margin-bottom: 0.13rem;
-}
-
-.page-detection-subtitle {
-  font-size: 0.69rem;
-  opacity: 0.8;
-}
-
 .actions-section {
   display: flex;
   flex-direction: column;

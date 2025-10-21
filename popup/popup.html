@@ -32,16 +32,6 @@
       </header>
 
       <main class="popup-main">
-        <section class="page-detection">
-          <span class="page-detection-icon">✓</span>
-          <div class="page-detection-text">
-            <div class="page-detection-title">arXiv paper detected</div>
-            <div class="page-detection-subtitle">
-              Ready to analyze this paper
-            </div>
-          </div>
-        </section>
-
         <section class="actions-section">
           <button
             class="action-btn primary"
@@ -110,13 +100,6 @@
               title="Settings"
             >
               ⚙️
-            </button>
-            <button
-              class="footer-btn"
-              id="exportBtn"
-              title="Export Data"
-            >
-              📥
             </button>
             <button
               class="footer-btn"
@@ -209,45 +192,6 @@
             <div class="danger-warning">
               This will permanently delete all analyzed papers and insights.
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Export Modal -->
-    <div
-      id="exportModal"
-      class="modal"
-    >
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title">📥 Export Data</h2>
-          <button class="modal-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="export-info">
-            <p>Export the analysis from the current paper as a PDF file.</p>
-          </div>
-
-          <div class="export-preview">
-            <div class="preview-title">Export will include:</div>
-            <ul class="export-list">
-              <li>✓ Paper title and metadata</li>
-              <li>✓ Key findings</li>
-              <li>✓ Research methodology</li>
-              <li>✓ Research gaps identified</li>
-              <li>✓ Related papers and connections</li>
-            </ul>
-          </div>
-
-          <div class="export-actions">
-            <button
-              id="exportPdfBtn"
-              class="action-btn primary"
-            >
-              <span class="btn-icon">📄</span>
-              <span class="btn-text">Export as PDF</span>
-            </button>
           </div>
         </div>
       </div>
