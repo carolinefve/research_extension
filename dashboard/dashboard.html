@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Research Insights Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="dashboard.css"
+    />
+    <script
+      src="dashboard.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <!-- Header -->
+      <header class="dashboard-header">
+        <div class="header-content">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <h1 class="logo-text">Research Insights Dashboard</h1>
+          </div>
+          <div class="header-actions">
+            <button
+              class="header-btn"
+              id="exportAllBtn"
+              title="Export All Data"
+            >
+              <span>📥</span>
+              <span>Export All</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Stats Overview -->
+      <section class="stats-overview">
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-info">
+            <div
+              class="stat-value"
+              id="totalPapers"
+            >
+              0
+            </div>
+            <div class="stat-label">Papers Analyzed</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔗</div>
+          <div class="stat-info">
+            <div
+              class="stat-value"
+              id="totalConnections"
+            >
+              0
+            </div>
+            <div class="stat-label">Connections Found</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div
+              class="stat-value"
+              id="avgConfidence"
+            >
+              0%
+            </div>
+            <div class="stat-label">Avg. Confidence</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search and Filters -->
+      <section class="search-section">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search papers by title, findings, or methodology..."
+            autocomplete="off"
+          />
+          <button
+            class="clear-search"
+            id="clearSearch"
+            style="display: none"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="filters">
+          <select
+            id="sortSelect"
+            class="filter-select"
+          >
+            <option value="recent">Most Recent</option>
+            <option value="oldest">Oldest First</option>
+            <option value="confidence">Highest Confidence</option>
+            <option value="connections">Most Connections</option>
+          </select>
+          <select
+            id="connectionFilter"
+            class="filter-select"
+          >
+            <option value="all">All Papers</option>
+            <option value="connected">Has Connections</option>
+            <option value="isolated">No Connections</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Papers Grid -->
+      <section class="papers-section">
+        <div class="section-header">
+          <h2>Your Research Papers</h2>
+          <span
+            class="results-count"
+            id="resultsCount"
+            >0 papers</span
+          >
+        </div>
+        <div
+          class="papers-grid"
+          id="papersGrid"
+        >
+          <!-- Papers will be inserted here -->
+          <div class="empty-state">
+            <div class="empty-icon">📄</div>
+            <h3>No papers analyzed yet</h3>
+            <p>
+              Visit arXiv, PubMed, or other supported sites and click "Analyze
+              Paper" to get started
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Connection Details Modal -->
+      <div
+        id="connectionModal"
+        class="modal"
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title">Paper Connections</h2>
+            <button class="modal-close">×</button>
+          </div>
+          <div
+            class="modal-body"
+            id="connectionModalBody"
+          >
+            <!-- Connection details will be inserted here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Paper Details Modal -->
+      <div
+        id="paperModal"
+        class="modal"
+      >
+        <div class="modal-content modal-large">
+          <div class="modal-header">
+            <h2
+              class="modal-title"
+              id="paperModalTitle"
+            >
+              Paper Details
+            </h2>
+            <button class="modal-close">×</button>
+          </div>
+          <div
+            class="modal-body"
+            id="paperModalBody"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

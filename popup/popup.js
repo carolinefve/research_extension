@@ -45,7 +45,6 @@ async function checkAPIAvailability() {
   }
 }
 
-// FIXED: Simplified checkSiteDetection without non-existent elements
 async function checkSiteDetection() {
   try {
     const [tab] = await chrome.tabs.query({
@@ -153,18 +152,14 @@ async function analyzePaper() {
   }
 }
 
-// View insights dashboard - open latest analysis
+// View insights dashboard - open in new tab
 document
   .querySelector(".action-btn.secondary")
   .addEventListener("click", async () => {
-    const { analyses = [] } = await chrome.storage.local.get("analyses");
-
-    if (analyses.length === 0) {
-      showNotification("No analyses yet. Analyze a paper first!", "warning");
-      return;
-    }
-
-    await openResultsWindow("latest");
+    // Open dashboard in a new tab
+    await chrome.tabs.create({
+      url: chrome.runtime.getURL("dashboard/dashboard.html"),
+    });
   });
 
 async function loadStats() {
@@ -174,9 +169,12 @@ async function loadStats() {
     const statNumbers = document.querySelectorAll(".stat-number");
     statNumbers[0].textContent = analyses.length; // Analyzed count
 
-    // Calculate connections (simplified: papers with similar topics)
-    const connections = Math.min(analyses.length * 0.5, analyses.length - 1);
-    statNumbers[1].textContent = Math.floor(connections);
+    // Calculate connections (count all connections)
+    const totalConnections = analyses.reduce((sum, paper) => {
+      return sum + (paper.connections?.length || 0);
+    }, 0);
+    // Divide by 2 because connections are bidirectional
+    statNumbers[1].textContent = Math.floor(totalConnections / 2);
 
     // Average confidence
     if (analyses.length > 0) {
@@ -200,9 +198,14 @@ async function loadLatestInsight() {
     const insightTitle = document.querySelector(".insight-title");
     const insightText = document.querySelector(".insight-text");
     const insightMeta = document.querySelector(".insight-meta");
+    const connectionBadge = document.querySelector(".connection-badge");
 
     insightTitle.textContent = latest.title;
     insightText.textContent = latest.summary.slice(0, 150) + "...";
+
+    // Update connection badge
+    const connectionCount = latest.connections?.length || 0;
+    connectionBadge.textContent = connectionCount;
 
     const timestamp = new Date(latest.timestamp);
     const timeAgo = getTimeAgo(timestamp);
@@ -310,7 +313,6 @@ clearDataBtn.addEventListener("click", async () => {
   }
 });
 
-// FIXED: Updated formatAnalysisForExport to include trajectory suggestions
 function formatAnalysisForExport(analysis) {
   return `
 Research Paper Analysis
@@ -337,6 +339,20 @@ ${
   analysis.trajectorySuggestions && analysis.trajectorySuggestions.length > 0
     ? analysis.trajectorySuggestions.map((t, i) => `${i + 1}. ${t}`).join("\n")
     : "No trajectory suggestions generated"
+}
+
+CONNECTIONS
+${
+  analysis.connections && analysis.connections.length > 0
+    ? analysis.connections
+        .map(
+          (c, i) =>
+            `${i + 1}. ${c.paperTitle} (${c.type}, strength: ${
+              c.strength
+            }/10)\n   ${c.description}`
+        )
+        .join("\n\n")
+    : "No connections found"
 }
   `.trim();
 }

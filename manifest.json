@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Research Insights",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Transform your browser into an intelligent research partner",
 
   "permissions": ["storage", "activeTab", "scripting", "tabs", "windows"],
@@ -34,9 +34,28 @@
       "resources": [
         "results/results.html",
         "results/results.css",
-        "results/results.js"
+        "results/results.js",
+        "dashboard/dashboard.html",
+        "dashboard/dashboard.css",
+        "dashboard/dashboard.js"
       ],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+I",
+        "mac": "Command+Shift+I"
+      }
+    },
+    "open_dashboard": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D",
+        "mac": "Command+Shift+D"
+      },
+      "description": "Open Research Insights Dashboard"
+    }
+  }
 }
