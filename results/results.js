@@ -36,9 +36,6 @@ function displayAnalysis(analysis) {
   document.getElementById("paperTitle").textContent = analysis.title;
 
   // Update sidebar stats
-  document.getElementById(
-    "confidenceScore"
-  ).textContent = `${analysis.confidence}%`;
   document.getElementById("findingsCount").textContent =
     analysis.keyFindings.length;
   document.getElementById("gapsCount").textContent =
@@ -292,8 +289,6 @@ function generatePDF(analysis) {
   );
   yPos += 6;
   doc.text(`Source: ${getSiteName(analysis.url)}`, margin, yPos);
-  yPos += 6;
-  doc.text(`Confidence Score: ${analysis.confidence}%`, margin, yPos);
   yPos += 6;
 
   addSpacing(10);

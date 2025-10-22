@@ -175,13 +175,6 @@ async function loadStats() {
     }, 0);
     // Divide by 2 because connections are bidirectional
     statNumbers[1].textContent = Math.floor(totalConnections / 2);
-
-    // Average confidence
-    if (analyses.length > 0) {
-      const avgConfidence =
-        analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length;
-      statNumbers[2].textContent = `${Math.round(avgConfidence)}%`;
-    }
   } catch (error) {
     console.error("Failed to load stats:", error);
   }
@@ -211,7 +204,6 @@ async function loadLatestInsight() {
     const timeAgo = getTimeAgo(timestamp);
     insightMeta.innerHTML = `
       <span>📅 ${timeAgo}</span>
-      <span>📈 ${latest.confidence}% confidence</span>
     `;
 
     // Make insight clickable to open results

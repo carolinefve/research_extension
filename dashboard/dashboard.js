@@ -36,17 +36,6 @@ function updateStats() {
   document.getElementById("totalConnections").textContent = Math.floor(
     totalConnections / 2
   );
-
-  // Average confidence
-  if (allPapers.length > 0) {
-    const avgConfidence =
-      allPapers.reduce((sum, paper) => sum + paper.confidence, 0) /
-      allPapers.length;
-    document.getElementById("avgConfidence").textContent =
-      Math.round(avgConfidence) + "%";
-  } else {
-    document.getElementById("avgConfidence").textContent = "0%";
-  }
 }
 
 // Render papers grid
@@ -120,8 +109,6 @@ function renderPapers() {
 // Create paper card HTML
 function createPaperCard(paper) {
   const hasConnections = paper.connections && paper.connections.length > 0;
-  const confidenceClass =
-    paper.confidence >= 80 ? "high" : paper.confidence >= 60 ? "medium" : "low";
   const timestamp = new Date(paper.timestamp);
   const timeAgo = getTimeAgo(timestamp);
 
@@ -131,9 +118,6 @@ function createPaperCard(paper) {
     }" data-paper-id="${paper.timestamp}">
       <div class="paper-header">
         <h3 class="paper-title">${escapeHtml(paper.title)}</h3>
-        <span class="confidence-badge ${confidenceClass}">${
-    paper.confidence
-  }%</span>
       </div>
       <p class="paper-summary">${escapeHtml(paper.summary)}</p>
       <div class="paper-meta">
@@ -243,9 +227,6 @@ function openPaperDetails(paper) {
   modalBody.innerHTML = `
     <div style="margin-bottom: 1.5rem;">
       <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-        <span style="background: var(--bg-gray); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;">
-          📊 Confidence: ${paper.confidence}%
-        </span>
         <span style="background: var(--bg-gray); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;">
           🌐 Source: ${getSiteName(paper.url)}
         </span>
@@ -472,9 +453,6 @@ function applyFilters() {
       filteredPapers.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
-      break;
-    case "confidence":
-      filteredPapers.sort((a, b) => b.confidence - a.confidence);
       break;
     case "connections":
       filteredPapers.sort((a, b) => {
