@@ -406,17 +406,19 @@ class ConnectionDetector {
       "chars"
     );
 
-    const prompt = `Compare these two research papers and identify their relationship. Focus on detecting if one paper cites, builds upon, or is related to the other.
+    const prompt = `Compare these two research papers and identify their relationship. Be STRICT - only identify strong, meaningful connections. Being in the same broad field (e.g., both about "machine learning" or "NLP") is NOT enough for a connection.
 
 PAPER 1 (NEWER):
 Title: ${paper1.title}
 Abstract: ${paper1Text}
 Key Findings: ${paper1.keyFindings.join("; ")}
+Research Gaps: ${paper1.researchGaps.join("; ")}
 
 PAPER 2 (OLDER):
 Title: ${paper2.title}
 Abstract: ${paper2Text}
 Key Findings: ${paper2.keyFindings.join("; ")}
+Research Gaps: ${paper2.researchGaps.join("; ")}
 
 Respond with ONLY a valid JSON object (no markdown, no extra text):
 {
@@ -427,22 +429,29 @@ Respond with ONLY a valid JSON object (no markdown, no extra text):
 }
 
 Rules:
-- hasConnection: true or false
+- hasConnection: true or false (BE STRICT - most papers should be false)
 - connectionType: "methodological" | "contradictory" | "complementary" | "citation" | "none"
-- strength: number from 1 to 10
-- description: simple string explaining the connection
+- strength: number from 1 to 10 (minimum 7 for real connections)
+- description: simple string explaining the SPECIFIC connection
 
-Connection Types:
-- citation: Papers share similar research focus, one likely cites or references the other's work, or both cite similar foundational research (use strength 8-10 for clear topical overlap)
-- complementary: One paper extends, validates, or addresses gaps/limitations mentioned in the other (strength 6-9)
-- methodological: Papers use similar research methods, approaches, or techniques (strength 5-8)
-- contradictory: Papers have conflicting findings, results, or conclusions (strength 6-9)
-- none: No significant connection between papers (strength 0)
+Connection Types (with STRICT criteria):
+- citation: Paper 1 explicitly mentions or directly builds upon the SPECIFIC approach/model/findings from Paper 2, OR both papers study the EXACT SAME narrow phenomenon/dataset/model (e.g., both specifically about "GPT-3", not just "transformers"). Requires very specific overlap, not just same field.
+- complementary: Paper 1 DIRECTLY addresses a gap or limitation that Paper 2 explicitly mentioned, OR Paper 2's findings/focus match gaps that Paper 1 identified, OR Paper 2's findings are a prerequisite for Paper 1's work. Check if research gaps from one paper align with the focus of the other.
+- methodological: Papers use the SAME SPECIFIC novel technique/algorithm (not just "uses neural networks" but "both use the exact same LoRA fine-tuning approach"). Different methods studying the same topic do NOT count as methodological connections.
+- contradictory: Papers have DIRECTLY OPPOSING findings or conclusions about the SAME SPECIFIC question/experiment
+- none: No strong, specific connection (this should be the most common result)
 
-Important Guidelines:
-- If papers are about the same specific topic (e.g., both about AI compute scaling, both about transformer architectures), mark as "citation" with strength 8-10
-- If one paper's abstract mentions concepts central to the other paper's work, mark as "citation" with high strength
-- Papers published in the same year but on the same narrow topic likely share common citations (mark as "citation" strength 7-8)`;
+STRICT Guidelines - Mark as "none" unless:
+- Papers share the EXACT SAME specific model, dataset, or narrow phenomenon (e.g., both about "BERT fine-tuning on SQUAD", not just "NLP")
+- One paper explicitly builds on the other's specific method or findings
+- Papers have contradictory results on the SAME specific experiment
+- One paper directly addresses a gap the other paper mentioned, or their gaps/findings complement each other
+- Note: Different methods studying the same specific phenomenon CAN be connected (citation/complementary), but not as "methodological"
+- Sharing a general field (AI, biology, etc.) is NOT a connection
+- Using common techniques (transformers, CNNs, etc.) is NOT enough for a methodological connection
+- Having similar themes is NOT a connection
+
+If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for any connection.`;
 
     try {
       console.log("[Research Insights] Sending enhanced comparison request...");
@@ -512,6 +521,14 @@ Important Guidelines:
         1,
         Math.min(10, parseInt(analysis.strength) || 5)
       );
+
+      // STRICT FILTER: Only accept connections with strength >= 7
+      if (strength < 7) {
+        console.log(
+          `[Research Insights] ❌ Connection strength too low (${strength}), filtering out`
+        );
+        return null;
+      }
 
       const connection = {
         paperId: paper2.timestamp,
