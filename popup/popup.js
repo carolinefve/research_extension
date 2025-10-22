@@ -184,22 +184,41 @@ async function loadLatestInsight() {
   try {
     const { analyses = [] } = await chrome.storage.local.get("analyses");
 
-    if (analyses.length === 0) return;
-
-    const latest = analyses[0];
     const insightItem = document.querySelector(".insight-item");
     const insightTitle = document.querySelector(".insight-title");
     const insightText = document.querySelector(".insight-text");
-    const insightMeta = document.querySelector(".insight-meta");
-    const connectionBadge = document.querySelector(".connection-badge");
+
+    // If no analyses, show empty state
+    if (analyses.length === 0) {
+      insightTitle.textContent = "No analyses yet";
+      insightText.textContent = "Analyze your first paper to get started";
+      insightItem.style.cursor = "default";
+      return;
+    }
+
+    // Show latest analysis
+    const latest = analyses[0];
 
     insightTitle.textContent = latest.title;
     insightText.textContent = latest.summary.slice(0, 150) + "...";
 
-    // Update connection badge
+    // Add/update connection badge
+    let connectionBadge = document.querySelector(".connection-badge");
+    if (!connectionBadge) {
+      connectionBadge = document.createElement("span");
+      connectionBadge.className = "connection-badge";
+      document.querySelector(".insight-header").appendChild(connectionBadge);
+    }
     const connectionCount = latest.connections?.length || 0;
     connectionBadge.textContent = connectionCount;
 
+    // Add/update meta info
+    let insightMeta = document.querySelector(".insight-meta");
+    if (!insightMeta) {
+      insightMeta = document.createElement("div");
+      insightMeta.className = "insight-meta";
+      insightItem.appendChild(insightMeta);
+    }
     const timestamp = new Date(latest.timestamp);
     const timeAgo = getTimeAgo(timestamp);
     insightMeta.innerHTML = `
