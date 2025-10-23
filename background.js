@@ -264,7 +264,11 @@ ${results.keyFindings.map((f, i) => `${i + 1}. ${f}`).join("\n")}
 Identified Gaps:
 ${results.researchGaps.map((g, i) => `${i + 1}. ${g}`).join("\n")}
 
-Provide concrete, feasible next steps that researchers could pursue. Each suggestion should be specific enough to guide actual research planning. Format as a numbered list.`;
+IMPORTANT: Format your response as a numbered list starting directly with "1." - do NOT include any introductory text like "Here are..." or explanations. Each suggestion should be 2-4 sentences describing concrete, feasible next steps that researchers could pursue.
+
+Example format:
+1. [Research direction title]. [2-4 sentences of actionable detail]
+2. [Research direction title]. [2-4 sentences of actionable detail]`;
 
           const trajectoriesText = await this.languageModelSession.prompt(
             trajectoryPrompt
@@ -318,7 +322,7 @@ Provide concrete, feasible next steps that researchers could pursue. Each sugges
     return lines.slice(0, 4);
   }
 
-  // FIXED: Parse trajectory suggestions that may span multiple lines
+  // Parse trajectory suggestions that may span multiple lines
   parseTrajectories(text) {
     console.log(
       "[Research Insights] Parsing trajectory text:",
@@ -333,10 +337,39 @@ Provide concrete, feasible next steps that researchers could pursue. Each sugges
         // Remove the number prefix and clean up
         return item
           .replace(/^\d+\.\s*/, "") // Remove leading "1. " or "2. " etc
-          .replace(/\n+/g, " ") // Replace internal newlines with spaces
+          .replace(/\n{3,}/g, "\n\n") // Keep paragraph breaks (convert 3+ newlines to 2)
+          .replace(/\n\s*\*/g, "\n*") // Normalize bullet formatting
           .trim();
       })
-      .filter((item) => item.length > 30); // Trajectories should be substantial
+      .filter((item) => {
+        // Must be substantial
+        if (item.length < 30) return false;
+
+        // Filter out preamble/introductory text
+        const lowerItem = item.toLowerCase();
+        const preamblePhrases = [
+          "here are",
+          "here is",
+          "below are",
+          "below is",
+          "following are",
+          "the following",
+          "i suggest",
+          "i recommend",
+          "these are",
+          "this is",
+        ];
+
+        // Check if item starts with any preamble phrase
+        const isPreamble = preamblePhrases.some(
+          (phrase) =>
+            lowerItem.startsWith(phrase) ||
+            lowerItem.includes(phrase + " specific") ||
+            lowerItem.includes(phrase + " actionable")
+        );
+
+        return !isPreamble;
+      });
 
     console.log(
       "[Research Insights] Parsed trajectories:",

@@ -1,11 +1,59 @@
-// Content script to extract paper content from arXiv
+// Content script to extract paper content from any research website
 
 function detectSite() {
-  const hostname = window.location.hostname;
-  if (hostname.includes("arxiv.org")) {
-    return { key: "arxiv", domain: "arxiv.org" };
+  // Simply check if the page looks like a research paper
+  if (looksLikeResearchPaper()) {
+    const hostname = window.location.hostname;
+    return {
+      key: getSiteName(hostname),
+      domain: hostname,
+    };
   }
+
   return null;
+}
+
+function getSiteName(hostname) {
+  // Extract a clean site name from hostname for display purposes
+  // Remove common prefixes and TLDs
+  const cleaned = hostname
+    .replace(/^www\./, "")
+    .replace(/^m\./, "")
+    .split(".")[0];
+
+  // Capitalize first letter
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function looksLikeResearchPaper() {
+  // Check for common research paper indicators
+  const bodyText = document.body.textContent.toLowerCase();
+
+  const indicators = [
+    // Look for "abstract" text
+    bodyText.includes("abstract"),
+    // Look for common paper metadata
+    document.querySelector('meta[name="citation_title"]'),
+    document.querySelector('meta[name="DC.title"]'),
+    document.querySelector('meta[property="og:type"][content="article"]'),
+    // Look for DOI
+    document.body.textContent.match(/\b10\.\d{4,}/),
+    // Look for keywords section
+    bodyText.includes("keywords"),
+    // Look for references or bibliography
+    bodyText.includes("references") || bodyText.includes("bibliography"),
+    // Look for author information
+    document.querySelector('[class*="author" i]') ||
+      document.querySelector('[id*="author" i]'),
+    // Look for academic journal indicators
+    bodyText.includes("published") || bodyText.includes("journal"),
+    // Look for introduction or conclusion sections
+    bodyText.includes("introduction") || bodyText.includes("conclusion"),
+  ];
+
+  // If at least 3 indicators are present, likely a research paper
+  const score = indicators.filter(Boolean).length;
+  return score >= 3;
 }
 
 async function extractPaperContent() {
@@ -14,88 +62,307 @@ async function extractPaperContent() {
     return null;
   }
 
-  // For arXiv PDF pages, fetch the abstract page
-  if (window.location.pathname.includes("/pdf/")) {
-    return await extractFromArxivPdf();
-  }
-
-  // For arXiv abstract pages, extract directly
-  return extractFromArxivAbstract();
+  // Use universal extractor for all sites
+  return extractUniversal();
 }
 
-function extractFromArxivAbstract() {
-  const getTextContent = (selector) => {
-    const element = document.querySelector(selector);
-    return element ? element.textContent.trim() : "";
-  };
+// Universal extractor that works on any research paper site
+function extractUniversal() {
+  console.log("[Research Insights] Using universal extractor");
 
-  const titleElement = document.querySelector("h1.title");
-  const title = titleElement
-    ? titleElement.textContent.replace("Title:", "").trim()
-    : "";
+  // Strategy 1: Try meta tags (most reliable)
+  let title = extractFromMeta();
+  let abstract = extractAbstractFromMeta();
+  let authors = extractAuthorsFromMeta();
 
-  const abstractElement = document.querySelector("blockquote.abstract");
-  const abstract = abstractElement
-    ? abstractElement.textContent.replace("Abstract:", "").trim()
-    : "";
+  // Strategy 2: Try semantic HTML and common patterns
+  if (!title) {
+    title = extractTitleFromDOM();
+  }
 
-  const authorsElement = document.querySelector(".authors");
-  const authors = authorsElement
-    ? authorsElement.textContent.replace("Authors:", "").trim()
-    : "";
+  if (!abstract) {
+    abstract = extractAbstractFromDOM();
+  }
+
+  if (!authors) {
+    authors = extractAuthorsFromDOM();
+  }
+
+  // Fallback: use page title if still no title found
+  if (!title) {
+    title = document.title.split("|")[0].split("-")[0].trim();
+  }
+
+  // If we still don't have an abstract, try to extract the most relevant text
+  if (!abstract || abstract.length < 50) {
+    abstract = extractMainContent();
+  }
+
+  const site = detectSite();
 
   return {
-    title,
-    abstract,
-    authors,
-    content: abstract,
+    title: title || "Untitled Paper",
+    abstract: abstract || "",
+    authors: authors || "",
+    content: abstract || "",
     url: window.location.href,
-    site: "arxiv",
+    site: site ? site.key : "generic",
   };
 }
 
-async function extractFromArxivPdf() {
-  try {
-    // Get the abstract URL from the PDF URL
-    const pdfUrl = window.location.href;
-    const abstractUrl = pdfUrl.replace("/pdf/", "/abs/").replace(".pdf", "");
+function extractFromMeta() {
+  // Try various meta tag patterns for title
+  const selectors = [
+    'meta[name="citation_title"]',
+    'meta[name="DC.title"]',
+    'meta[property="og:title"]',
+    'meta[name="twitter:title"]',
+    'meta[property="article:title"]',
+  ];
 
-    // Fetch the abstract page
-    const response = await fetch(abstractUrl);
-    const html = await response.text();
-
-    // Parse the HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-
-    // Extract information
-    const titleElement = doc.querySelector("h1.title");
-    const title = titleElement
-      ? titleElement.textContent.replace("Title:", "").trim()
-      : "";
-
-    const abstractElement = doc.querySelector("blockquote.abstract");
-    const abstract = abstractElement
-      ? abstractElement.textContent.replace("Abstract:", "").trim()
-      : "";
-
-    const authorsElement = doc.querySelector(".authors");
-    const authors = authorsElement
-      ? authorsElement.textContent.replace("Authors:", "").trim()
-      : "";
-
-    return {
-      title,
-      abstract,
-      authors,
-      content: abstract,
-      url: abstractUrl, // Use abstract URL instead of PDF URL
-      site: "arxiv",
-    };
-  } catch (error) {
-    console.error("Failed to fetch arXiv abstract:", error);
-    return null;
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element && element.content && element.content.length > 10) {
+      return element.content.trim();
+    }
   }
+
+  return null;
+}
+
+function extractAbstractFromMeta() {
+  // Try various meta tag patterns for abstract
+  const selectors = [
+    'meta[name="citation_abstract"]',
+    'meta[name="DC.description"]',
+    'meta[property="og:description"]',
+    'meta[name="description"]',
+    'meta[name="twitter:description"]',
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element && element.content && element.content.length > 100) {
+      return element.content.trim();
+    }
+  }
+
+  return null;
+}
+
+function extractAuthorsFromMeta() {
+  // Try various meta tag patterns for authors
+  const selectors = [
+    'meta[name="citation_author"]',
+    'meta[name="DC.creator"]',
+    'meta[name="author"]',
+    'meta[property="article:author"]',
+  ];
+
+  const authors = [];
+
+  for (const selector of selectors) {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach((el) => {
+      if (el.content && el.content.trim()) {
+        authors.push(el.content.trim());
+      }
+    });
+  }
+
+  return authors.length > 0 ? authors.join(", ") : null;
+}
+
+function extractTitleFromDOM() {
+  // Try to find title using common patterns
+  const titleSelectors = [
+    'h1[class*="title" i]',
+    '[class*="article-title" i]',
+    '[class*="paper-title" i]',
+    '[class*="citation__title" i]',
+    '[id*="title" i]',
+    "h1",
+    '[class*="headline" i]',
+  ];
+
+  for (const selector of titleSelectors) {
+    const element = document.querySelector(selector);
+    if (element && element.textContent.trim().length > 10) {
+      const text = element.textContent.trim();
+      // Filter out very long text (likely not a title)
+      if (text.length < 300) {
+        return text;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractAbstractFromDOM() {
+  // Try to find abstract using common patterns
+  const abstractSelectors = [
+    '[class*="abstract" i]',
+    '[id*="abstract" i]',
+    'section[aria-label*="abstract" i]',
+    '[data-testid*="abstract" i]',
+    'div[role="region"][aria-label*="abstract" i]',
+  ];
+
+  for (const selector of abstractSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      // Get text but exclude nested script/style tags
+      let text = element.textContent.trim();
+
+      // Remove common labels
+      text = text.replace(/^abstract[:\s]*/i, "");
+      text = text.replace(/^summary[:\s]*/i, "");
+
+      // Must be substantial content
+      if (text.length > 100 && text.length < 5000) {
+        return text;
+      }
+    }
+  }
+
+  // Try looking for paragraph after "abstract" heading
+  const headings = document.querySelectorAll(
+    "h2, h3, h4, strong, b, .section-title"
+  );
+  for (const heading of headings) {
+    const headingText = heading.textContent.toLowerCase().trim();
+    if (
+      headingText === "abstract" ||
+      headingText === "summary" ||
+      headingText.includes("abstract")
+    ) {
+      let nextElement = heading.nextElementSibling;
+      let abstractText = "";
+
+      // Collect paragraphs after the abstract heading
+      let iterations = 0;
+      while (nextElement && abstractText.length < 2000 && iterations < 10) {
+        iterations++;
+
+        if (nextElement.tagName === "P" || nextElement.tagName === "DIV") {
+          const text = nextElement.textContent.trim();
+          if (text.length > 50) {
+            abstractText += text + " ";
+          }
+        } else if (nextElement.tagName.match(/^H[1-6]$/)) {
+          break; // Stop at next heading
+        }
+
+        nextElement = nextElement.nextElementSibling;
+      }
+
+      if (abstractText.length > 100) {
+        return abstractText.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractAuthorsFromDOM() {
+  // Try to find authors using common patterns
+  const authorSelectors = [
+    '[class*="author" i]:not([class*="author-list" i])',
+    '[class*="contributor" i]',
+    '[id*="author" i]',
+    '[class*="creator" i]',
+    '[rel="author"]',
+    'a[href*="/author/"]',
+    '[data-test*="author" i]',
+  ];
+
+  const authors = [];
+
+  for (const selector of authorSelectors) {
+    const elements = document.querySelectorAll(selector);
+
+    for (const element of elements) {
+      const text = element.textContent.trim();
+
+      // Filter out obvious non-author text
+      if (
+        text.length > 2 &&
+        text.length < 100 &&
+        !text.toLowerCase().includes("author") &&
+        !text.toLowerCase().includes("contact") &&
+        !text.includes("@") &&
+        !text.toLowerCase().includes("affiliation")
+      ) {
+        // Check if it looks like a name (has at least one space, period, or comma)
+        if (text.includes(" ") || text.includes(".") || text.includes(",")) {
+          authors.push(text);
+          if (authors.length >= 10) break; // Limit to first 10 authors
+        }
+      }
+    }
+
+    if (authors.length > 0) break;
+  }
+
+  // Remove duplicates and join
+  const uniqueAuthors = [...new Set(authors)];
+  return uniqueAuthors.length > 0
+    ? uniqueAuthors.slice(0, 10).join(", ")
+    : null;
+}
+
+function extractMainContent() {
+  // Extract main content as fallback
+  // Look for the largest block of text that's likely the main content
+
+  const contentSelectors = [
+    "main",
+    "article",
+    '[role="main"]',
+    "#content",
+    ".content",
+    "#main",
+    ".main",
+    ".article-content",
+    ".paper-content",
+  ];
+
+  for (const selector of contentSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      // Get all paragraphs
+      const paragraphs = element.querySelectorAll("p");
+      let content = "";
+
+      for (const p of paragraphs) {
+        const text = p.textContent.trim();
+        if (text.length > 50) {
+          content += text + " ";
+          if (content.length > 1500) break; // Limit content length
+        }
+      }
+
+      if (content.length > 200) {
+        return content.trim();
+      }
+    }
+  }
+
+  // Ultimate fallback: get first few substantial paragraphs from body
+  const allParagraphs = document.querySelectorAll("p");
+  let fallbackContent = "";
+
+  for (const p of allParagraphs) {
+    const text = p.textContent.trim();
+    if (text.length > 100) {
+      fallbackContent += text + " ";
+      if (fallbackContent.length > 1000) break;
+    }
+  }
+
+  return fallbackContent.trim();
 }
 
 // Listen for messages from popup

@@ -31,7 +31,7 @@ async function loadAnalysis() {
   }
 }
 
-// NEW: Function to convert markdown-style text to HTML
+// Function to convert markdown-style text to HTML
 function formatMarkdownText(text) {
   if (!text) return "";
 
@@ -40,8 +40,7 @@ function formatMarkdownText(text) {
   // Convert bold text: **text** to <strong>text</strong>
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Convert bullet points at start of line: * text to <li>text</li>
-  // First, split into lines and process
+  // Split into lines and process
   const lines = html.split("\n");
   let inList = false;
   let result = [];
@@ -49,29 +48,33 @@ function formatMarkdownText(text) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Check if line starts with bullet point
-    if (line.startsWith("* ")) {
-      if (!inList) {
-        result.push("<ul>");
-        inList = true;
-      }
-      // Remove the "* " and wrap in <li>
-      result.push("<li>" + line.substring(2) + "</li>");
-    } else if (line.startsWith("- ")) {
-      if (!inList) {
-        result.push("<ul>");
-        inList = true;
-      }
-      // Remove the "- " and wrap in <li>
-      result.push("<li>" + line.substring(2) + "</li>");
-    } else {
+    // Skip empty lines unless we're in a list
+    if (line.length === 0) {
       if (inList) {
         result.push("</ul>");
         inList = false;
       }
-      if (line.length > 0) {
-        result.push("<p>" + line + "</p>");
+      continue;
+    }
+
+    // Check if line starts with bullet point (*, -, or •)
+    if (line.match(/^[*\-•]\s/)) {
+      if (!inList) {
+        result.push("<ul>");
+        inList = true;
       }
+      // Remove the bullet and wrap in <li>, preserve bold formatting
+      const content = line.replace(/^[*\-•]\s+/, "");
+      result.push("<li>" + content + "</li>");
+    } else {
+      // Close list if we were in one
+      if (inList) {
+        result.push("</ul>");
+        inList = false;
+      }
+
+      // Regular paragraph
+      result.push("<p>" + line + "</p>");
     }
   }
 

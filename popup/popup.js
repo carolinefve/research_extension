@@ -26,7 +26,7 @@ const statusText = document.querySelector(".status-text");
 // Status management functions
 function setStatus(status, text) {
   // Remove all status classes
-  statusDot.classList.remove("ready", "limited", "analyzing", "error");
+  statusDot.classList.remove("ready", "limited", "error");
 
   // Add new status class
   statusDot.classList.add(status);
@@ -153,7 +153,6 @@ async function analyzePaper() {
     // Continue with analysis for new papers
     isAnalyzing = true;
     analyzeBtn.disabled = true;
-    setStatus("analyzing", "Analyzing");
     updateAnalysisProgress(0);
 
     // Start polling for progress updates from storage

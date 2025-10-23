@@ -174,19 +174,58 @@ function escapeHtml(text) {
 
 // Convert markdown to HTML
 function markdownToHtml(text) {
+  if (!text) return "";
+
   // First escape HTML to prevent XSS
-  let html = escapeHtml(text);
+  let escaped = escapeHtml(text);
 
-  // Convert **bold** to <strong>
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Convert bold text: **text** to <strong>text</strong>
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Convert *italic* to <em>
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  // Split into lines and process
+  const lines = escaped.split("\n");
+  let inList = false;
+  let result = [];
 
-  // Convert `code` to <code>
-  html = html.replace(/`(.+?)`/g, "<code>$1</code>");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
 
-  return html;
+    // Skip empty lines unless we're in a list
+    if (line.length === 0) {
+      if (inList) {
+        result.push("</ul>");
+        inList = false;
+      }
+      continue;
+    }
+
+    // Check if line starts with bullet point (*, -, or •)
+    if (line.match(/^[*\-•]\s/)) {
+      if (!inList) {
+        result.push("<ul>");
+        inList = true;
+      }
+      // Remove the bullet and wrap in <li>
+      const content = line.replace(/^[*\-•]\s+/, "");
+      result.push("<li>" + content + "</li>");
+    } else {
+      // Close list if we were in one
+      if (inList) {
+        result.push("</ul>");
+        inList = false;
+      }
+
+      // Regular paragraph
+      result.push("<p>" + line + "</p>");
+    }
+  }
+
+  // Close any open list
+  if (inList) {
+    result.push("</ul>");
+  }
+
+  return result.join("");
 }
 
 // Open connection modal
@@ -308,7 +347,7 @@ function openPaperDetails(paper) {
       paper.trajectorySuggestions && paper.trajectorySuggestions.length > 0
         ? `
       <div style="margin-bottom: 2rem;">
-        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🚀 Research Trajectory</h3>
+        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🚀 Research Future & Next Steps</h3>
         <ol style="padding-left: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
           ${paper.trajectorySuggestions
             .map(
