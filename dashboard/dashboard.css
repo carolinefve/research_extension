@@ -710,3 +710,39 @@ body {
     opacity: 0;
   }
 }
+
+.modal-body ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.modal-body li {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 0.5rem;
+  line-height: 1.7;
+}
+
+.modal-body ul li:before {
+  content: "•";
+  color: var(--btn);
+  font-weight: bold;
+  font-size: 1.2rem;
+  position: absolute;
+  left: -1rem;
+}
+
+.modal-body p {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
+
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-body strong {
+  font-weight: 600;
+  color: var(--text);
+}

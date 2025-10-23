@@ -267,6 +267,87 @@ body {
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.content-card p:last-child {
+  margin-bottom: 0;
+}
+
+.content-card ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.content-card li {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.content-card li:before {
+  content: "•";
+  color: var(--btn);
+  font-weight: bold;
+  font-size: 1.2rem;
+  position: absolute;
+  left: -1rem;
+}
+
+.content-card strong {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Styled formatting for finding/gap/trajectory text */
+.finding-text ul,
+.gap-text ul,
+.trajectory-text ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.finding-text li,
+.gap-text li,
+.trajectory-text li {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.finding-text li:before,
+.gap-text li:before,
+.trajectory-text li:before {
+  content: "•";
+  color: var(--btn);
+  font-weight: bold;
+  font-size: 1.2rem;
+  position: absolute;
+  left: -1rem;
+}
+
+.finding-text p,
+.gap-text p,
+.trajectory-text p {
+  margin-bottom: 0.5rem;
+}
+
+.finding-text p:last-child,
+.gap-text p:last-child,
+.trajectory-text p:last-child {
+  margin-bottom: 0;
+}
+
+.finding-text strong,
+.gap-text strong,
+.trajectory-text strong {
+  font-weight: 600;
+  color: var(--text);
 }
 
 /* Findings and Gaps Lists */

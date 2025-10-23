@@ -172,6 +172,23 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Convert markdown to HTML
+function markdownToHtml(text) {
+  // First escape HTML to prevent XSS
+  let html = escapeHtml(text);
+
+  // Convert **bold** to <strong>
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Convert *italic* to <em>
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+  // Convert `code` to <code>
+  html = html.replace(/`(.+?)`/g, "<code>$1</code>");
+
+  return html;
+}
+
 // Open connection modal
 function openConnectionModal(paper) {
   const modal = document.getElementById("connectionModal");
@@ -202,7 +219,9 @@ function openConnectionModal(paper) {
             }/10</span>
           </div>
           <h4 class="connection-item-title">${escapeHtml(conn.paperTitle)}</h4>
-          <p class="connection-description">${escapeHtml(conn.description)}</p>
+          <p class="connection-description">${markdownToHtml(
+            conn.description
+          )}</p>
           <div class="connection-meta">
             Detected ${getTimeAgo(new Date(conn.detectedAt))}
           </div>
@@ -216,7 +235,7 @@ function openConnectionModal(paper) {
   modal.classList.add("active");
 }
 
-// Open paper details modal
+// Open paper details modal - FIXED with markdown rendering
 function openPaperDetails(paper) {
   const modal = document.getElementById("paperModal");
   const modalTitle = document.getElementById("paperModalTitle");
@@ -243,7 +262,7 @@ function openPaperDetails(paper) {
 
     <div style="margin-bottom: 2rem;">
       <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">📄 Summary</h3>
-      <p style="line-height: 1.7; color: var(--text-light);">${escapeHtml(
+      <p style="line-height: 1.7; color: var(--text-light);">${markdownToHtml(
         paper.summary
       )}</p>
     </div>
@@ -254,7 +273,7 @@ function openPaperDetails(paper) {
         ${paper.keyFindings
           .map(
             (finding) => `
-          <li style="line-height: 1.6; color: var(--text-light);">${escapeHtml(
+          <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
             finding
           )}</li>
         `
@@ -265,7 +284,7 @@ function openPaperDetails(paper) {
 
     <div style="margin-bottom: 2rem;">
       <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🔬 Methodology</h3>
-      <p style="line-height: 1.7; color: var(--text-light);">${escapeHtml(
+      <p style="line-height: 1.7; color: var(--text-light);">${markdownToHtml(
         paper.methodology
       )}</p>
     </div>
@@ -276,7 +295,7 @@ function openPaperDetails(paper) {
         ${paper.researchGaps
           .map(
             (gap) => `
-          <li style="line-height: 1.6; color: var(--text-light);">${escapeHtml(
+          <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
             gap
           )}</li>
         `
@@ -294,7 +313,7 @@ function openPaperDetails(paper) {
           ${paper.trajectorySuggestions
             .map(
               (traj) => `
-            <li style="line-height: 1.6; color: var(--text-light);">${escapeHtml(
+            <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
               traj
             )}</li>
           `
@@ -327,7 +346,7 @@ function openPaperDetails(paper) {
               <h4 style="font-size: 0.938rem; font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(
                 conn.paperTitle
               )}</h4>
-              <p style="font-size: 0.875rem; color: var(--text-light); line-height: 1.5;">${escapeHtml(
+              <p style="font-size: 0.875rem; color: var(--text-light); line-height: 1.5;">${markdownToHtml(
                 conn.description
               )}</p>
             </div>

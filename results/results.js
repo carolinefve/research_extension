@@ -31,6 +31,58 @@ async function loadAnalysis() {
   }
 }
 
+// NEW: Function to convert markdown-style text to HTML
+function formatMarkdownText(text) {
+  if (!text) return "";
+
+  let html = text;
+
+  // Convert bold text: **text** to <strong>text</strong>
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Convert bullet points at start of line: * text to <li>text</li>
+  // First, split into lines and process
+  const lines = html.split("\n");
+  let inList = false;
+  let result = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check if line starts with bullet point
+    if (line.startsWith("* ")) {
+      if (!inList) {
+        result.push("<ul>");
+        inList = true;
+      }
+      // Remove the "* " and wrap in <li>
+      result.push("<li>" + line.substring(2) + "</li>");
+    } else if (line.startsWith("- ")) {
+      if (!inList) {
+        result.push("<ul>");
+        inList = true;
+      }
+      // Remove the "- " and wrap in <li>
+      result.push("<li>" + line.substring(2) + "</li>");
+    } else {
+      if (inList) {
+        result.push("</ul>");
+        inList = false;
+      }
+      if (line.length > 0) {
+        result.push("<p>" + line + "</p>");
+      }
+    }
+  }
+
+  // Close any open list
+  if (inList) {
+    result.push("</ul>");
+  }
+
+  return result.join("");
+}
+
 function displayAnalysis(analysis) {
   // Update title
   document.getElementById("paperTitle").textContent = analysis.title;
@@ -40,7 +92,6 @@ function displayAnalysis(analysis) {
     analysis.keyFindings.length;
   document.getElementById("gapsCount").textContent =
     analysis.researchGaps.length;
-  // NEW: Update trajectories count
   document.getElementById("trajectoriesCount").textContent =
     analysis.trajectorySuggestions?.length || 0;
 
@@ -55,24 +106,23 @@ function displayAnalysis(analysis) {
   const originalLink = document.getElementById("originalLink");
   originalLink.href = analysis.url;
 
-  // Update summary
-  document.getElementById("summaryContent").textContent = analysis.summary;
-  document.getElementById("summaryContent").classList.remove("loading-text");
+  // Update summary - USE innerHTML with formatted text
+  const summaryElement = document.getElementById("summaryContent");
+  summaryElement.innerHTML = formatMarkdownText(analysis.summary);
+  summaryElement.classList.remove("loading-text");
 
   // Update key findings
   displayFindings(analysis.keyFindings);
 
-  // Update methodology
-  document.getElementById("methodologyContent").textContent =
-    analysis.methodology;
-  document
-    .getElementById("methodologyContent")
-    .classList.remove("loading-text");
+  // Update methodology - USE innerHTML with formatted text
+  const methodologyElement = document.getElementById("methodologyContent");
+  methodologyElement.innerHTML = formatMarkdownText(analysis.methodology);
+  methodologyElement.classList.remove("loading-text");
 
   // Update research gaps
   displayGaps(analysis.researchGaps);
 
-  // NEW: Update trajectory suggestions
+  // Update trajectory suggestions
   displayTrajectories(analysis.trajectorySuggestions || []);
 
   // Update page title
@@ -98,7 +148,7 @@ function displayFindings(findings) {
     item.innerHTML = `
       <div class="finding-content">
         <span class="finding-number">${index + 1}</span>
-        <p class="finding-text">${escapeHtml(finding)}</p>
+        <div class="finding-text">${formatMarkdownText(finding)}</div>
       </div>
     `;
     findingsList.appendChild(item);
@@ -124,14 +174,13 @@ function displayGaps(gaps) {
     item.innerHTML = `
       <div class="gap-content">
         <span class="gap-number">${index + 1}</span>
-        <p class="gap-text">${escapeHtml(gap)}</p>
+        <div class="gap-text">${formatMarkdownText(gap)}</div>
       </div>
     `;
     gapsList.appendChild(item);
   });
 }
 
-// NEW FUNCTION: Display trajectory suggestions
 function displayTrajectories(trajectories) {
   const trajectoriesList = document.getElementById("trajectoriesList");
   const trajectoriesBadge = document.getElementById("trajectoriesBadge");
@@ -151,7 +200,7 @@ function displayTrajectories(trajectories) {
     item.innerHTML = `
       <div class="trajectory-content">
         <span class="trajectory-number">${index + 1}</span>
-        <p class="trajectory-text">${escapeHtml(trajectory)}</p>
+        <div class="trajectory-text">${formatMarkdownText(trajectory)}</div>
       </div>
     `;
     trajectoriesList.appendChild(item);
@@ -267,6 +316,14 @@ function generatePDF(analysis) {
     yPos += 10;
   }
 
+  // Helper to strip markdown formatting for PDF
+  function stripMarkdown(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold
+      .replace(/^\* /gm, "• ") // Convert bullets
+      .replace(/^- /gm, "• "); // Convert dashes to bullets
+  }
+
   // Title
   addText("RESEARCH PAPER ANALYSIS", 20, true, true);
   addSpacing(15);
@@ -298,7 +355,7 @@ function generatePDF(analysis) {
   // Summary Section
   addText("SUMMARY", 14, true);
   addSpacing(8);
-  addText(analysis.summary, 10);
+  addText(stripMarkdown(analysis.summary), 10);
   addSpacing(15);
   addSeparator();
   addSpacing(5);
@@ -309,7 +366,7 @@ function generatePDF(analysis) {
 
   if (analysis.keyFindings.length > 0) {
     analysis.keyFindings.forEach((finding, index) => {
-      const numberedText = `${index + 1}. ${finding}`;
+      const numberedText = `${index + 1}. ${stripMarkdown(finding)}`;
       addText(numberedText, 10);
       addSpacing(8);
     });
@@ -325,7 +382,7 @@ function generatePDF(analysis) {
   // Research Methodology Section
   addText("RESEARCH METHODOLOGY", 14, true);
   addSpacing(8);
-  addText(analysis.methodology, 10);
+  addText(stripMarkdown(analysis.methodology), 10);
   addSpacing(15);
   addSeparator();
   addSpacing(5);
@@ -336,7 +393,7 @@ function generatePDF(analysis) {
 
   if (analysis.researchGaps.length > 0) {
     analysis.researchGaps.forEach((gap, index) => {
-      const numberedText = `${index + 1}. ${gap}`;
+      const numberedText = `${index + 1}. ${stripMarkdown(gap)}`;
       addText(numberedText, 10);
       addSpacing(8);
     });
@@ -349,7 +406,7 @@ function generatePDF(analysis) {
   addSeparator();
   addSpacing(5);
 
-  // NEW: Trajectory Suggestions Section
+  // Trajectory Suggestions Section
   addText("RESEARCH TRAJECTORY & NEXT STEPS", 14, true);
   addSpacing(8);
 
@@ -358,7 +415,7 @@ function generatePDF(analysis) {
     analysis.trajectorySuggestions.length > 0
   ) {
     analysis.trajectorySuggestions.forEach((trajectory, index) => {
-      const numberedText = `${index + 1}. ${trajectory}`;
+      const numberedText = `${index + 1}. ${stripMarkdown(trajectory)}`;
       addText(numberedText, 10);
       addSpacing(8);
     });

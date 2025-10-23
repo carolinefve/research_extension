@@ -269,7 +269,8 @@ Provide concrete, feasible next steps that researchers could pursue. Each sugges
           const trajectoriesText = await this.languageModelSession.prompt(
             trajectoryPrompt
           );
-          results.trajectorySuggestions = this.parseFindings(trajectoriesText);
+          results.trajectorySuggestions =
+            this.parseTrajectories(trajectoriesText);
           successfulSteps++;
           console.log(
             "[Research Insights] Trajectory suggestions generated:",
@@ -315,6 +316,33 @@ Provide concrete, feasible next steps that researchers could pursue. Each sugges
 
     console.log("[Research Insights] Parsed findings:", lines.length);
     return lines.slice(0, 4);
+  }
+
+  // FIXED: Parse trajectory suggestions that may span multiple lines
+  parseTrajectories(text) {
+    console.log(
+      "[Research Insights] Parsing trajectory text:",
+      text.substring(0, 200)
+    );
+
+    // Split on numbered list markers (1., 2., 3., etc.)
+    const items = text.split(/\n(?=\d+\.\s)/);
+
+    const trajectories = items
+      .map((item) => {
+        // Remove the number prefix and clean up
+        return item
+          .replace(/^\d+\.\s*/, "") // Remove leading "1. " or "2. " etc
+          .replace(/\n+/g, " ") // Replace internal newlines with spaces
+          .trim();
+      })
+      .filter((item) => item.length > 30); // Trajectories should be substantial
+
+    console.log(
+      "[Research Insights] Parsed trajectories:",
+      trajectories.length
+    );
+    return trajectories.slice(0, 5);
   }
 
   async cleanup() {
