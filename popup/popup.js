@@ -115,37 +115,22 @@ async function openResultsWindow(analysisId = "latest") {
   }
 }
 
+// NEW: Check if paper already exists
+async function checkForDuplicate(paperUrl) {
+  const { analyses = [] } = await chrome.storage.local.get("analyses");
+  return analyses.find((analysis) => analysis.url === paperUrl);
+}
+
 async function analyzePaper() {
   if (isAnalyzing) return;
 
-  isAnalyzing = true;
-  analyzeBtn.disabled = true;
-  setStatus("analyzing", "Analyzing");
-  updateAnalysisProgress(0);
-
-  // Start polling for progress updates from storage
-  const progressInterval = setInterval(async () => {
-    try {
-      const { analysisProgress } = await chrome.storage.local.get(
-        "analysisProgress"
-      );
-      if (analysisProgress !== undefined && isAnalyzing) {
-        updateAnalysisProgress(analysisProgress);
-      }
-    } catch (error) {
-      // Ignore errors
-    }
-  }, 100); // Poll every 100ms for smooth progress updates
-
   try {
-    // Get current tab
+    // Get current tab and extract content first to check for duplicates
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
     });
 
-    // Extract paper content
-    updateAnalysisProgress(10);
     const contentResponse = await chrome.tabs.sendMessage(tab.id, {
       action: "extractContent",
     });
@@ -154,49 +139,85 @@ async function analyzePaper() {
       throw new Error("Failed to extract paper content");
     }
 
-    // Analyze with Chrome AI APIs
-    updateAnalysisProgress(15);
-    const analysisResponse = await chrome.runtime.sendMessage({
-      action: "analyzePaper",
-      paperData: contentResponse.data,
-    });
+    // NEW: Check for duplicate and automatically show existing analysis
+    const existingPaper = await checkForDuplicate(contentResponse.data.url);
 
-    if (!analysisResponse.success) {
-      throw new Error(analysisResponse.error || "Analysis failed");
+    if (existingPaper) {
+      console.log("[Research Insights] Found existing analysis for this paper");
+
+      // Automatically open the existing analysis (no notification)
+      await openResultsWindow(existingPaper.timestamp);
+      return;
     }
 
-    currentAnalysis = analysisResponse.data;
+    // Continue with analysis for new papers
+    isAnalyzing = true;
+    analyzeBtn.disabled = true;
+    setStatus("analyzing", "Analyzing");
+    updateAnalysisProgress(0);
 
-    // Update UI
-    updateAnalysisProgress(100);
-    await loadStats();
-    await loadLatestInsight();
+    // Start polling for progress updates from storage
+    const progressInterval = setInterval(async () => {
+      try {
+        const { analysisProgress } = await chrome.storage.local.get(
+          "analysisProgress"
+        );
+        if (analysisProgress !== undefined && isAnalyzing) {
+          updateAnalysisProgress(analysisProgress);
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }, 100); // Poll every 100ms for smooth progress updates
 
-    // Clear progress from storage
-    await chrome.storage.local.remove("analysisProgress");
+    try {
+      // Analyze with Chrome AI APIs
+      updateAnalysisProgress(15);
+      const analysisResponse = await chrome.runtime.sendMessage({
+        action: "analyzePaper",
+        paperData: contentResponse.data,
+      });
 
-    // Restore ready status
-    setStatus("ready", "Ready");
+      if (!analysisResponse.success) {
+        throw new Error(analysisResponse.error || "Analysis failed");
+      }
 
-    // Open results in popup window
-    await openResultsWindow("latest");
+      currentAnalysis = analysisResponse.data;
+
+      // Update UI
+      updateAnalysisProgress(100);
+      await loadStats();
+      await loadLatestInsight();
+
+      // Clear progress from storage
+      await chrome.storage.local.remove("analysisProgress");
+
+      // Restore ready status
+      setStatus("ready", "Ready");
+
+      // Open results in popup window
+      await openResultsWindow("latest");
+    } catch (error) {
+      console.error("Analysis error:", error);
+      setStatus("error", "Error");
+      showNotification(error.message || "Failed to analyze paper", "error");
+
+      // Reset to ready status after 3 seconds
+      setTimeout(async () => {
+        await checkAPIAvailability();
+      }, 3000);
+    } finally {
+      // Stop polling for progress updates
+      clearInterval(progressInterval);
+
+      isAnalyzing = false;
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML =
+        '<span class="btn-icon">🔍</span><div class="btn-content"><span class="btn-text">Analyze Current Page</span></div>';
+    }
   } catch (error) {
-    console.error("Analysis error:", error);
-    setStatus("error", "Error");
-    showNotification(error.message || "Failed to analyze paper", "error");
-
-    // Reset to ready status after 3 seconds
-    setTimeout(async () => {
-      await checkAPIAvailability();
-    }, 3000);
-  } finally {
-    // Stop polling for progress updates
-    clearInterval(progressInterval);
-
-    isAnalyzing = false;
-    analyzeBtn.disabled = false;
-    analyzeBtn.innerHTML =
-      '<span class="btn-icon">🔍</span><div class="btn-content"><span class="btn-text">Analyze Current Page</span></div>';
+    console.error("Pre-analysis error:", error);
+    showNotification(error.message || "Failed to start analysis", "error");
   }
 }
 
