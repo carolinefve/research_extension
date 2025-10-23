@@ -100,8 +100,21 @@ async function analyzePaper() {
 
   isAnalyzing = true;
   analyzeBtn.disabled = true;
-  analyzeBtn.innerHTML =
-    '<span class="btn-icon">⏳</span><div class="btn-content"><span class="btn-text">Analyzing...</span></div>';
+  updateAnalysisProgress(0);
+
+  // Start polling for progress updates from storage
+  const progressInterval = setInterval(async () => {
+    try {
+      const { analysisProgress } = await chrome.storage.local.get(
+        "analysisProgress"
+      );
+      if (analysisProgress !== undefined && isAnalyzing) {
+        updateAnalysisProgress(analysisProgress);
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+  }, 100); // Poll every 100ms for smooth progress updates
 
   try {
     // Get current tab
@@ -111,7 +124,7 @@ async function analyzePaper() {
     });
 
     // Extract paper content
-    showNotification("Extracting paper content...", "info");
+    updateAnalysisProgress(10);
     const contentResponse = await chrome.tabs.sendMessage(tab.id, {
       action: "extractContent",
     });
@@ -121,7 +134,7 @@ async function analyzePaper() {
     }
 
     // Analyze with Chrome AI APIs
-    showNotification("Analyzing with AI...", "info");
+    updateAnalysisProgress(15);
     const analysisResponse = await chrome.runtime.sendMessage({
       action: "analyzePaper",
       paperData: contentResponse.data,
@@ -134,22 +147,31 @@ async function analyzePaper() {
     currentAnalysis = analysisResponse.data;
 
     // Update UI
+    updateAnalysisProgress(100);
     await loadStats();
     await loadLatestInsight();
 
+    // Clear progress from storage
+    await chrome.storage.local.remove("analysisProgress");
+
     // Open results in popup window
     await openResultsWindow("latest");
-
-    showNotification("Analysis complete! Opening results...", "success");
   } catch (error) {
     console.error("Analysis error:", error);
     showNotification(error.message || "Failed to analyze paper", "error");
   } finally {
+    // Stop polling for progress updates
+    clearInterval(progressInterval);
+
     isAnalyzing = false;
     analyzeBtn.disabled = false;
     analyzeBtn.innerHTML =
       '<span class="btn-icon">🔍</span><div class="btn-content"><span class="btn-text">Analyze Current Page</span></div>';
   }
+}
+
+function updateAnalysisProgress(percentage) {
+  analyzeBtn.innerHTML = `<span class="btn-icon">${percentage}%</span><div class="btn-content"><span class="btn-text">Analyzing...</span></div>`;
 }
 
 // View insights dashboard - open in new tab
@@ -439,6 +461,15 @@ function showNotification(message, type = "info") {
     setTimeout(() => notification.remove(), 300);
   }, 3000);
 }
+
+// Listen for progress updates from background script
+// Note: We primarily use storage polling (in analyzePaper function) for reliable updates,
+// but keep this listener as a backup in case direct messaging works
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "analysisProgress" && isAnalyzing) {
+    updateAnalysisProgress(request.progress);
+  }
+});
 
 // Initialize on load
 initializePopup();

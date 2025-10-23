@@ -147,6 +147,26 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       paperData.title
     );
 
+    // Helper function to send progress updates via storage (more reliable for service workers)
+    const sendProgress = async (progress) => {
+      try {
+        // Store progress in chrome.storage for popup to read
+        await chrome.storage.local.set({ analysisProgress: progress });
+
+        // Also try to send message (might work if popup is open)
+        chrome.runtime
+          .sendMessage({
+            action: "analysisProgress",
+            progress: progress,
+          })
+          .catch(() => {
+            // Ignore errors if popup is closed
+          });
+      } catch (error) {
+        // Ignore errors
+      }
+    };
+
     // UPDATED: Now stores original abstract for better connection detection
     const results = {
       title: paperData.title,
@@ -174,6 +194,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
 
     try {
       // Step 1: Generate summary using Summarizer API
+      sendProgress(20);
       console.log("[Research Insights] Step 1: Generating summary...");
       if (this.summarizerSession) {
         const contentToSummarize = paperData.abstract || paperData.content;
@@ -188,6 +209,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       }
 
       // Step 2: Extract key findings using Writer API
+      sendProgress(35);
       console.log("[Research Insights] Step 2: Extracting key findings...");
       if (this.writerSession) {
         const findingsPrompt = `Based on this research paper summary, identify and list 2-3 main research contributions or key findings. Be specific and concise:\n\n${results.summary}`;
@@ -201,6 +223,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       }
 
       // Step 3: Identify methodology using Writer API
+      sendProgress(50);
       console.log("[Research Insights] Step 3: Analyzing methodology...");
       if (this.writerSession) {
         const methodologyPrompt = `Based on this research paper summary, describe the research methodology, techniques, or approaches used in 2-3 sentences:\n\n${results.summary}`;
@@ -210,6 +233,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       }
 
       // Step 4: Identify research gaps using Writer API
+      sendProgress(65);
       console.log("[Research Insights] Step 4: Identifying research gaps...");
       if (this.writerSession) {
         const gapsPrompt = `Based on this research paper summary, identify 2-3 research gaps, limitations, or areas the authors mention need further investigation:\n\n${results.summary}`;
@@ -224,6 +248,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
 
       // Step 5: Generate trajectory suggestions using LanguageModel (OPTIONAL)
       if (this.languageModelSession) {
+        sendProgress(80);
         console.log(
           "[Research Insights] Step 5: Generating research trajectory suggestions..."
         );
@@ -633,6 +658,19 @@ async function handleAnalysis(paperData) {
     console.log("[Research Insights] === STARTING STEP 6 ===");
 
     if (analyzer.languageModelSession) {
+      // Send progress update via storage (more reliable)
+      try {
+        await chrome.storage.local.set({ analysisProgress: 90 });
+        chrome.runtime
+          .sendMessage({
+            action: "analysisProgress",
+            progress: 90,
+          })
+          .catch(() => {});
+      } catch (error) {
+        // Ignore errors
+      }
+
       console.log(
         "[Research Insights] Step 6: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
       );
