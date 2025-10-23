@@ -6,7 +6,7 @@
 
   "permissions": ["storage", "activeTab", "scripting", "tabs", "windows"],
 
-  "host_permissions": ["https://arxiv.org/*"],
+  "host_permissions": ["<all_urls>"],
 
   "background": {
     "service_worker": "background.js"
@@ -14,12 +14,7 @@
 
   "content_scripts": [
     {
-      "matches": [
-        "https://arxiv.org/*",
-        "https://pubmed.ncbi.nlm.nih.gov/*",
-        "https://ieeexplore.ieee.org/*",
-        "https://scholar.google.com/*"
-      ],
+      "matches": ["https://*/*", "http://*/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
