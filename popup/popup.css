@@ -73,11 +73,48 @@ body {
   margin-left: 3rem;
 }
 
+.status-text {
+  transition: color 0.3s ease;
+}
+
 .status-dot {
   width: 0.38rem;
   height: 0.38rem;
   border-radius: 50%;
+  transition: background 0.3s ease;
+}
+
+.status-dot.ready {
   background: var(--success);
+  box-shadow: 0 0 0.5rem rgba(16, 185, 129, 0.5);
+}
+
+.status-dot.limited {
+  background: var(--warning);
+  box-shadow: 0 0 0.5rem rgba(245, 158, 11, 0.5);
+}
+
+.status-dot.analyzing {
+  background: #3b82f6;
+  box-shadow: 0 0 0.5rem rgba(59, 130, 246, 0.5);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-dot.error {
+  background: var(--danger);
+  box-shadow: 0 0 0.5rem rgba(220, 38, 38, 0.5);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
 }
 
 /* UPDATED: Added overflow scrolling to handle variable content sizes */
@@ -191,6 +228,7 @@ body {
   flex-shrink: 0;
 }
 
+/* UPDATED: Made recent section flexible */
 .recent-section {
   flex-shrink: 0;
   min-height: 0;
@@ -202,6 +240,7 @@ body {
   gap: 0.5rem;
 }
 
+/* UPDATED: Added max-height and improved overflow handling for insight items */
 .insight-item {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -231,6 +270,7 @@ body {
   flex-shrink: 0;
 }
 
+/* UPDATED: Better title handling with line clamping */
 .insight-title {
   font-weight: 600;
   color: var(--text);
@@ -253,6 +293,7 @@ body {
   flex-shrink: 0;
 }
 
+/* UPDATED: Better text overflow handling */
 .insight-text {
   color: var(--text-light);
   margin-bottom: 0.38rem;

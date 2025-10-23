@@ -19,6 +19,22 @@ const clearDataBtn = document.getElementById("clearDataBtn");
 let currentAnalysis = null;
 let isAnalyzing = false;
 
+// Status indicator elements
+const statusDot = document.querySelector(".status-dot");
+const statusText = document.querySelector(".status-text");
+
+// Status management functions
+function setStatus(status, text) {
+  // Remove all status classes
+  statusDot.classList.remove("ready", "limited", "analyzing", "error");
+
+  // Add new status class
+  statusDot.classList.add(status);
+
+  // Update text
+  statusText.textContent = text;
+}
+
 // Initialize popup
 async function initializePopup() {
   await checkSiteDetection();
@@ -35,13 +51,17 @@ async function checkAPIAvailability() {
     });
 
     if (!response.available) {
+      setStatus("limited", "Limited");
       showNotification(
         "Chrome AI APIs not available. Some features may be limited.",
         "warning"
       );
+    } else {
+      setStatus("ready", "Ready");
     }
   } catch (error) {
     console.error("Failed to check API availability:", error);
+    setStatus("error", "Error");
   }
 }
 
@@ -100,6 +120,7 @@ async function analyzePaper() {
 
   isAnalyzing = true;
   analyzeBtn.disabled = true;
+  setStatus("analyzing", "Analyzing");
   updateAnalysisProgress(0);
 
   // Start polling for progress updates from storage
@@ -154,11 +175,20 @@ async function analyzePaper() {
     // Clear progress from storage
     await chrome.storage.local.remove("analysisProgress");
 
+    // Restore ready status
+    setStatus("ready", "Ready");
+
     // Open results in popup window
     await openResultsWindow("latest");
   } catch (error) {
     console.error("Analysis error:", error);
+    setStatus("error", "Error");
     showNotification(error.message || "Failed to analyze paper", "error");
+
+    // Reset to ready status after 3 seconds
+    setTimeout(async () => {
+      await checkAPIAvailability();
+    }, 3000);
   } finally {
     // Stop polling for progress updates
     clearInterval(progressInterval);
