@@ -1,6 +1,7 @@
 :root {
-  --primary: #3b82f6;
-  --primary-dark: #1d4ed8;
+  --primary: #1a2653;
+  --btn: #8a6bda;
+  --btn-hover: #8361da;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -35,9 +36,9 @@ body {
   flex-direction: column;
 }
 
-/* Header */
+/* Header - Updated to match popup */
 .dashboard-header {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: var(--primary);
   color: white;
   padding: 1.5rem 2rem;
   box-shadow: var(--shadow);
@@ -75,9 +76,10 @@ body {
   gap: 0.75rem;
 }
 
+/* Updated button styling to match popup */
 .header-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--btn);
+  border: none;
   color: white;
   padding: 0.625rem 1rem;
   border-radius: 0.5rem;
@@ -91,7 +93,7 @@ body {
 }
 
 .header-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--btn-hover);
   transform: translateY(-1px);
 }
 
@@ -114,11 +116,13 @@ body {
   gap: 1rem;
   box-shadow: var(--shadow);
   transition: all 0.3s;
+  border: 1px solid var(--border);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
+  border-color: var(--btn);
 }
 
 .stat-icon {
@@ -178,8 +182,8 @@ body {
 
 #searchInput:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--btn);
+  box-shadow: 0 0 0 3px rgba(138, 107, 218, 0.1);
 }
 
 .clear-search {
@@ -224,13 +228,13 @@ body {
 }
 
 .filter-select:hover {
-  border-color: var(--primary);
+  border-color: var(--btn);
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--btn);
+  box-shadow: 0 0 0 3px rgba(138, 107, 218, 0.1);
 }
 
 /* Papers Section */
@@ -283,7 +287,7 @@ body {
 .paper-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
+  border-color: var(--btn);
 }
 
 .paper-card.has-connections::before {
@@ -293,7 +297,7 @@ body {
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(to bottom, var(--success), var(--primary));
+  background: linear-gradient(to bottom, var(--success), var(--btn));
 }
 
 .paper-header {
@@ -369,6 +373,7 @@ body {
   gap: 0.5rem;
 }
 
+/* Updated connection badge to match popup button color */
 .connection-badge {
   display: flex;
   align-items: center;
@@ -378,7 +383,7 @@ body {
   border-radius: 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--primary);
+  color: var(--btn);
   border: 1px solid var(--border);
   cursor: pointer;
   transition: all 0.2s;
@@ -386,13 +391,13 @@ body {
 }
 
 .connection-badge:hover {
-  background: var(--primary);
+  background: var(--btn);
   color: white;
-  border-color: var(--primary);
+  border-color: var(--btn);
 }
 
 .view-details-btn {
-  background: var(--primary);
+  background: var(--btn);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -404,7 +409,7 @@ body {
 }
 
 .view-details-btn:hover {
-  background: var(--primary-dark);
+  background: var(--btn-hover);
   transform: translateY(-1px);
 }
 
@@ -464,7 +469,7 @@ body {
   margin: 0 auto;
 }
 
-/* Modal */
+/* Modal - Updated to match popup */
 .modal {
   display: none;
   position: fixed;
@@ -522,7 +527,7 @@ body {
 }
 
 .modal-header {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: var(--btn);
   color: white;
   padding: 1.5rem;
   display: flex;
@@ -592,7 +597,7 @@ body {
   background: var(--bg-gray);
   border-radius: 0.5rem;
   padding: 1rem;
-  border-left: 4px solid var(--primary);
+  border-left: 4px solid var(--btn);
 }
 
 .connection-item-header {
@@ -609,7 +614,7 @@ body {
 }
 
 .connection-strength {
-  background: var(--primary);
+  background: var(--btn);
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
