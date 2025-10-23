@@ -88,6 +88,10 @@ function extractUniversal() {
     authors = extractAuthorsFromDOM();
   }
 
+  // Strategy 3: Extract Introduction and Conclusion text
+  let introduction = extractIntroductionFromDOM();
+  let conclusion = extractConclusionFromDOM();
+
   // Fallback: use page title if still no title found
   if (!title) {
     title = document.title.split("|")[0].split("-")[0].trim();
@@ -104,7 +108,9 @@ function extractUniversal() {
     title: title || "Untitled Paper",
     abstract: abstract || "",
     authors: authors || "",
-    content: abstract || "",
+    content: abstract || "", // 'content' is the primary text for summarization
+    introductionText: introduction || "", // Add intro text
+    conclusionText: conclusion || "", // Add conclusion text
     url: window.location.href,
     site: site ? site.key : "generic",
   };
@@ -242,7 +248,8 @@ function extractAbstractFromDOM() {
 
       // Collect paragraphs after the abstract heading
       let iterations = 0;
-      while (nextElement && abstractText.length < 2000 && iterations < 10) {
+      // Limit to 5000 chars for abstract
+      while (nextElement && abstractText.length < 5000 && iterations < 10) {
         iterations++;
 
         if (nextElement.tagName === "P" || nextElement.tagName === "DIV") {
@@ -263,6 +270,118 @@ function extractAbstractFromDOM() {
     }
   }
 
+  return null;
+}
+
+function extractIntroductionFromDOM() {
+  // Try looking for paragraph after "Introduction" heading
+  const headings = document.querySelectorAll(
+    "h2, h3, h4, strong, b, .section-title"
+  );
+  for (const heading of headings) {
+    const headingText = heading.textContent.toLowerCase().trim();
+    const isIntro =
+      headingText === "introduction" ||
+      headingText.startsWith("1. introduction") ||
+      headingText.startsWith("introduction");
+
+    if (isIntro) {
+      let nextElement = heading.nextElementSibling;
+      let introText = "";
+
+      // Collect paragraphs after the intro heading
+      let iterations = 0;
+      // --- (IMPROVEMENT 1) ---
+      // Removed character limit to scrape full section
+      // 'Smart Truncation' will be applied in background.js
+      while (nextElement && iterations < 20) {
+        // Limit to 20 paragraphs
+        iterations++;
+
+        if (nextElement.tagName === "P" || nextElement.tagName === "DIV") {
+          const text = nextElement.textContent.trim();
+          if (text.length > 50) {
+            introText += text + " ";
+          }
+        } else if (nextElement.tagName.match(/^H[1-6]$/)) {
+          // Stop at next heading (e.g., "2. Methods" or "Related Work")
+          const nextHeadingText = nextElement.textContent.toLowerCase().trim();
+          if (!nextHeadingText.startsWith("1.") && nextHeadingText.length > 0) {
+            break;
+          }
+        }
+
+        nextElement = nextElement.nextElementSibling;
+      }
+
+      if (introText.length > 100) {
+        console.log(
+          "[Research Insights] Extracted introduction text:",
+          introText.length,
+          "chars"
+        );
+        return introText.trim();
+      }
+    }
+  }
+  console.log("[Research Insights] Could not extract introduction from DOM");
+  return null;
+}
+
+function extractConclusionFromDOM() {
+  // Try looking for paragraph after "Conclusion" heading
+  const headings = document.querySelectorAll(
+    "h2, h3, h4, strong, b, .section-title"
+  );
+  for (const heading of headings) {
+    const headingText = heading.textContent.toLowerCase().trim();
+    const isConclusion =
+      headingText === "conclusion" ||
+      headingText === "conclusions" ||
+      headingText.includes("discussion") ||
+      headingText.includes("future work") ||
+      headingText.includes("limitations");
+
+    if (isConclusion) {
+      let nextElement = heading.nextElementSibling;
+      let conclusionText = "";
+
+      // Collect paragraphs after the conclusion heading
+      let iterations = 0;
+      // --- (IMPROVEMENT 1) ---
+      // Removed character limit to scrape full section
+      // 'Smart Truncation' will be applied in background.js
+      while (nextElement && iterations < 20) {
+        // Limit to 20 paragraphs
+        iterations++;
+
+        if (nextElement.tagName === "P" || nextElement.tagName === "DIV") {
+          const text = nextElement.textContent.trim();
+          if (text.length > 50) {
+            conclusionText += text + " ";
+          }
+        } else if (nextElement.tagName.match(/^H[1-6]$/)) {
+          // Stop at next heading (e.g., "References")
+          const nextHeadingText = nextElement.textContent.toLowerCase().trim();
+          if (nextHeadingText.includes("reference")) {
+            break;
+          }
+        }
+
+        nextElement = nextElement.nextElementSibling;
+      }
+
+      if (conclusionText.length > 100) {
+        console.log(
+          "[Research Insights] Extracted conclusion text:",
+          conclusionText.length,
+          "chars"
+        );
+        return conclusionText.trim();
+      }
+    }
+  }
+  console.log("[Research Insights] Could not extract conclusion from DOM");
   return null;
 }
 

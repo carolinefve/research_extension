@@ -1,3 +1,23 @@
+// --- NEW (IMPROVEMENT 1) ---
+/**
+ * Truncates text by taking the beginning and the end.
+ * @param {string} text The full text to truncate.
+ * @param {number} totalLength The total desired character length.
+ * @returns {string} The truncated text.
+ */
+function smartTruncate(text, totalLength = 3500) {
+  if (!text || text.length <= totalLength) {
+    return text || "";
+  }
+
+  const halfLength = Math.floor(totalLength / 2);
+  const start = text.substring(0, halfLength);
+  const end = text.substring(text.length - halfLength);
+
+  return start + "\n\n...[Content Truncated]...\n\n" + end;
+}
+// --- END NEW ---
+
 class PaperAnalyzer {
   constructor() {
     this.summarizerSession = null;
@@ -38,7 +58,7 @@ class PaperAnalyzer {
       // Create Summarizer session
       console.log("[Research Insights] Creating Summarizer session...");
       this.summarizerSession = await Summarizer.create({
-        type: "key-points",
+        type: "teaser",
         format: "plain-text",
         length: "medium",
         outputLanguage: "en",
@@ -167,14 +187,14 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       }
     };
 
-    // UPDATED: Now stores original abstract for better connection detection
     const results = {
       title: paperData.title,
       url: paperData.url,
       timestamp: new Date().toISOString(),
-      abstract: paperData.abstract || paperData.content, // ← Store original abstract
+      abstract: paperData.abstract || paperData.content, // Store original abstract
       keyFindings: [],
       methodology: "",
+      researchQuestion: "", // NEW: Field for research question
       researchGaps: [],
       trajectorySuggestions: [],
       connections: [],
@@ -187,10 +207,31 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       results.abstract.length,
       "chars"
     );
+    if (paperData.introductionText) {
+      console.log(
+        "[Research Insights] Introduction length:",
+        paperData.introductionText.length,
+        "chars"
+      );
+    }
+    if (paperData.conclusionText) {
+      console.log(
+        "[Research Insights] Conclusion length:",
+        paperData.conclusionText.length,
+        "chars"
+      );
+    }
 
-    // Calculate total steps based on available APIs
-    const totalSteps = this.languageModelSession ? 5 : 4;
+    // Calculate total steps based on available APIs and data
+    let totalSteps = 4; // Base: Summary, Findings, Methodology, Gaps
     let successfulSteps = 0;
+
+    if (this.writerSession && paperData.introductionText) {
+      totalSteps++; // Add step for Research Question
+    }
+    if (this.languageModelSession) {
+      totalSteps++; // Add step for Trajectories
+    }
 
     try {
       // Step 1: Generate summary using Summarizer API
@@ -212,7 +253,17 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       sendProgress(35);
       console.log("[Research Insights] Step 2: Extracting key findings...");
       if (this.writerSession) {
-        const findingsPrompt = `Based on this research paper summary, identify and list 2-3 main research contributions or key findings. Be specific and concise:\n\n${results.summary}`;
+        // --- UPDATED (IMPROVEMENT 2) ---
+        const findingsPrompt = `You are a research assistant. Your task is to read the following abstract of an academic paper and extract only the main contributions or key findings.
+- List 2-3 key findings.
+- Be specific and concise.
+- Do NOT add any introductory text like "Here are the findings...".
+- Start directly with the first finding.
+
+Abstract:
+${results.abstract}`;
+        // --- END UPDATE ---
+
         const findingsText = await this.writerSession.write(findingsPrompt);
         results.keyFindings = this.parseFindings(findingsText);
         successfulSteps++;
@@ -222,21 +273,84 @@ Keep suggestions clear, actionable, and well-reasoned.`,
         );
       }
 
-      // Step 3: Identify methodology using Writer API
-      sendProgress(50);
-      console.log("[Research Insights] Step 3: Analyzing methodology...");
+      // Step 3 (NEW): Extract Research Question from Introduction
+      if (this.writerSession && paperData.introductionText) {
+        sendProgress(50);
+        console.log(
+          "[Research Insights] Step 3: Extracting research question..."
+        );
+        try {
+          // --- UPDATED (IMPROVEMENT 1) ---
+          const introText = smartTruncate(paperData.introductionText, 3500);
+
+          // --- UPDATED (IMPROVEMENT 2) ---
+          const questionPrompt = `You are a research assistant. Read the following introduction from an academic paper and identify the primary research question, problem statement, or hypothesis.
+- Answer in one or two concise sentences.
+- Do NOT add any introductory text.
+
+Introduction Text:
+${introText}`;
+          // --- END UPDATE ---
+
+          results.researchQuestion = await this.writerSession.write(
+            questionPrompt
+          );
+          successfulSteps++;
+          console.log(
+            "[Research Insights] Research question extracted:",
+            results.researchQuestion
+          );
+        } catch (introError) {
+          console.warn(
+            "[Research Insights] Failed to extract research question:",
+            introError.message
+          );
+        }
+      }
+
+      // Step 4 (was 3): Identify methodology using Writer API
+      sendProgress(60);
+      console.log("[Research Insights] Step 4: Analyzing methodology...");
       if (this.writerSession) {
-        const methodologyPrompt = `Based on this research paper summary, describe the research methodology, techniques, or approaches used in 2-3 sentences:\n\n${results.summary}`;
+        // --- UPDATED (IMPROVEMENT 2) ---
+        const methodologyPrompt = `You are a research assistant. Read the following abstract and describe the research methodology, techniques, or approaches used.
+- Answer in 2-3 sentences.
+- Do NOT add any introductory text.
+
+Abstract:
+${results.abstract}`;
+        // --- END UPDATE ---
+
         results.methodology = await this.writerSession.write(methodologyPrompt);
         successfulSteps++;
         console.log("[Research Insights] Methodology analyzed");
       }
 
-      // Step 4: Identify research gaps using Writer API
-      sendProgress(65);
-      console.log("[Research Insights] Step 4: Identifying research gaps...");
+      // Step 5 (was 4, ENHANCED): Identify research gaps using Conclusion
+      sendProgress(75);
+      console.log("[Research Insights] Step 5: Identifying research gaps...");
       if (this.writerSession) {
-        const gapsPrompt = `Based on this research paper summary, identify 2-3 research gaps, limitations, or areas the authors mention need further investigation:\n\n${results.summary}`;
+        // Use conclusion text if available (much better), otherwise fallback to summary
+        const gapSourceText = paperData.conclusionText || results.summary;
+
+        // --- UPDATED (IMPROVEMENT 1) ---
+        const gapSource = smartTruncate(gapSourceText, 3500);
+        // --- END UPDATE ---
+
+        console.log(
+          "[Research Insights] Using gap source:",
+          paperData.conclusionText ? "Conclusion" : "Summary"
+        );
+
+        // --- UPDATED (IMPROVEMENT 2) ---
+        const gapsPrompt = `You are a research assistant. Read the following text (from a paper's conclusion or summary) and identify 2-3 research gaps, limitations, or areas suggested for future investigation.
+- List only the gaps or limitations.
+- Do NOT add any introductory text.
+
+Text:
+${gapSource}`;
+        // --- END UPDATE ---
+
         const gapsText = await this.writerSession.write(gapsPrompt);
         results.researchGaps = this.parseFindings(gapsText);
         successfulSteps++;
@@ -246,22 +360,23 @@ Keep suggestions clear, actionable, and well-reasoned.`,
         );
       }
 
-      // Step 5: Generate trajectory suggestions using LanguageModel (OPTIONAL)
+      // Step 6 (was 5, ENHANCED): Generate trajectory suggestions (OPTIONAL)
       if (this.languageModelSession) {
-        sendProgress(80);
+        sendProgress(85);
         console.log(
-          "[Research Insights] Step 5: Generating research trajectory suggestions..."
+          "[Research Insights] Step 6: Generating research trajectory suggestions..."
         );
         try {
+          // This prompt is already quite good, as it leverages the new, more accurate gaps
           const trajectoryPrompt = `Based on this research paper and its identified gaps, suggest 3-4 specific, actionable research directions that could build upon this work.
+
+Research Question/Problem:
+${results.researchQuestion || "N/A"}
 
 Paper Summary:
 ${results.summary}
 
-Key Findings:
-${results.keyFindings.map((f, i) => `${i + 1}. ${f}`).join("\n")}
-
-Identified Gaps:
+Identified Gaps/Limitations:
 ${results.researchGaps.map((g, i) => `${i + 1}. ${g}`).join("\n")}
 
 IMPORTANT: Format your response as a numbered list starting directly with "1." - do NOT include any introductory text like "Here are..." or explanations. Each suggestion should be 2-4 sentences describing concrete, feasible next steps that researchers could pursue.
@@ -708,15 +823,15 @@ async function handleAnalysis(paperData) {
       };
     }
 
-    // Step 1-5: Analyze the paper
+    // Step 1-6: Analyze the paper (this now includes the new Deep Dive steps)
     const result = await analyzer.analyzePaper(paperData);
 
     if (!result.success) {
       return result;
     }
 
-    // Step 6: Detect connections with previous papers
-    console.log("[Research Insights] === STARTING STEP 6 ===");
+    // Step 7: Detect connections with previous papers
+    console.log("[Research Insights] === STARTING STEP 7 (Connections) ===");
 
     if (analyzer.languageModelSession) {
       // Send progress update via storage (more reliable)
@@ -733,7 +848,7 @@ async function handleAnalysis(paperData) {
       }
 
       console.log(
-        "[Research Insights] Step 6: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
+        "[Research Insights] Step 7: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
       );
       console.log(
         "[Research Insights] LanguageModel session exists:",
@@ -793,7 +908,7 @@ async function handleAnalysis(paperData) {
       result.data.connections = [];
     }
 
-    console.log("[Research Insights] === STEP 6 COMPLETE ===");
+    console.log("[Research Insights] === STEP 7 COMPLETE ===");
 
     // Save with bidirectional connections
     console.log("[Research Insights] Saving analysis with connections...");
