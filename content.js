@@ -1,9 +1,58 @@
 // Content script to extract paper content from any research website
 
 function detectSite() {
-  // Simply check if the page looks like a research paper
+  const hostname = window.location.hostname;
+  const url = window.location.href.toLowerCase();
+
+  // Define supported sites
+  const supportedSites = {
+    "arxiv.org": {
+      key: "arXiv",
+      domain: "arxiv.org",
+      // Matches both HTML pages and PDF URLs
+      isSupported:
+        hostname.includes("arxiv.org") &&
+        (url.includes("/abs/") || url.includes("/pdf/")),
+    },
+    "ncbi.nlm.nih.gov": {
+      key: "PubMed",
+      domain: "ncbi.nlm.nih.gov",
+      isSupported:
+        hostname.includes("ncbi.nlm.nih.gov") &&
+        (url.includes("/pmc/") || url.includes("/pubmed/")),
+    },
+    "ieeexplore.ieee.org": {
+      key: "IEEE",
+      domain: "ieeexplore.ieee.org",
+      isSupported:
+        hostname.includes("ieeexplore.ieee.org") && url.includes("/document/"),
+    },
+    "scholar.google.com": {
+      key: "Scholar",
+      domain: "scholar.google.com",
+      isSupported: hostname.includes("scholar.google.com"),
+    },
+    "link.springer.com": {
+      key: "Springer",
+      domain: "link.springer.com",
+      isSupported:
+        hostname.includes("link.springer.com") &&
+        (url.includes("/article/") || url.includes("/chapter/")),
+    },
+  };
+
+  // Check if current site is supported
+  for (const [key, site] of Object.entries(supportedSites)) {
+    if (site.isSupported) {
+      return {
+        key: site.key,
+        domain: site.domain,
+      };
+    }
+  }
+
+  // Fallback: check if it looks like a research paper on an unknown site
   if (looksLikeResearchPaper()) {
-    const hostname = window.location.hostname;
     return {
       key: getSiteName(hostname),
       domain: hostname,
@@ -26,6 +75,18 @@ function getSiteName(hostname) {
 }
 
 function looksLikeResearchPaper() {
+  // Check if we're viewing a PDF
+  const isPDF =
+    document.contentType === "application/pdf" ||
+    window.location.href.toLowerCase().endsWith(".pdf") ||
+    document.querySelector("embed[type='application/pdf']") ||
+    document.querySelector("object[type='application/pdf']");
+
+  if (isPDF) {
+    console.log("[NovaMind] Detected PDF document");
+    return true; // PDFs are likely research papers
+  }
+
   // Check for common research paper indicators
   const bodyText = document.body.textContent.toLowerCase();
 
@@ -62,13 +123,12 @@ async function extractPaperContent() {
     return null;
   }
 
-  // Use universal extractor for all sites
-  return extractUniversal();
+  return extractFromPage();
 }
 
-// Universal extractor that works on any research paper site
-function extractUniversal() {
-  console.log("[NovaMind] Using universal extractor");
+// Extract paper content from supported research sites
+function extractFromPage() {
+  console.log("[NovaMind] Extracting paper content");
 
   // Strategy 1: Try meta tags (most reliable)
   let title = extractFromMeta();

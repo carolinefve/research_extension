@@ -12,11 +12,12 @@ const summaryLengthSelect = document.getElementById("summaryLength");
 const connectionDetectionToggle = document.getElementById(
   "connectionDetection"
 );
+const autoAnalyzeToggle = document.getElementById("autoAnalyze");
 const clearDataBtn = document.getElementById("clearDataBtn");
 
 // State
 let currentAnalysis = null;
-let isAnalyzing = false;
+let isAnalysing = false;
 
 // Status indicator elements
 const statusDot = document.querySelector(".status-dot");
@@ -160,7 +161,7 @@ async function analysePaper() {
         const { analysisProgress } = await chrome.storage.local.get(
           "analysisProgress"
         );
-        if (analysisProgress !== undefined && isAnalyzing) {
+        if (analysisProgress !== undefined && isAnalysing) {
           updateAnalysisProgress(analysisProgress);
         }
       } catch (error) {
@@ -514,7 +515,7 @@ function showNotification(message, type = "info") {
 // Note: We primarily use storage polling (in analysePaper function) for reliable updates,
 // but keep this listener as a backup in case direct messaging works
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "analysisProgress" && isAnalyzing) {
+  if (request.action === "analysisProgress" && isAnalysing) {
     updateAnalysisProgress(request.progress);
   }
 });
