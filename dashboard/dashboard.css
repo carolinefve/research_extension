@@ -128,7 +128,8 @@ body {
 
 /* Main Content Container */
 .main-content {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 70rem;
   margin: 0 auto;
   padding: 0 2rem;
 }
