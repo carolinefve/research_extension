@@ -120,6 +120,9 @@ function displayAnalysis(analysis) {
   // Update trajectory suggestions
   displayTrajectories(analysis.trajectorySuggestions || []);
 
+  // Update connections
+  displayConnections(analysis.connections || []);
+
   // Update page title
   document.title = `Analysis: ${analysis.title}`;
 }
@@ -200,6 +203,69 @@ function displayTrajectories(trajectories) {
     `;
     trajectoriesList.appendChild(item);
   });
+}
+
+function displayConnections(connections) {
+  const connectionsList = document.getElementById("connectionsList");
+  const connectionsBadge = document.getElementById("connectionsBadge");
+  const connectionsSection = document.getElementById("connectionsSection");
+
+  connectionsBadge.textContent = connections.length;
+  connectionsList.innerHTML = "";
+
+  if (connections.length === 0) {
+    connectionsList.innerHTML =
+      '<p class="loading-text">No connections found with other analyzed papers</p>';
+    return;
+  }
+
+  // Sort connections by strength (highest first)
+  const sortedConnections = [...connections].sort(
+    (a, b) => b.strength - a.strength
+  );
+
+  sortedConnections.forEach((connection, index) => {
+    const item = document.createElement("div");
+    item.className = "connection-item";
+
+    // Get connection type color class
+    const typeClass = getConnectionTypeClass(connection.type);
+
+    item.innerHTML = `
+      <div class="connection-content">
+        <div class="connection-header-row">
+          <span class="connection-number">${index + 1}</span>
+          <div class="connection-meta-top">
+            <span class="connection-type-badge ${typeClass}">${
+      connection.type
+    }</span>
+            <span class="connection-strength-badge">Strength: ${
+              connection.strength
+            }/10</span>
+          </div>
+        </div>
+        <div class="connection-body">
+          <h4 class="connection-paper-title">${escapeHtml(
+            connection.paperTitle
+          )}</h4>
+          <div class="connection-description">${formatMarkdownText(
+            connection.description
+          )}</div>
+        </div>
+      </div>
+    `;
+    connectionsList.appendChild(item);
+  });
+}
+
+function getConnectionTypeClass(type) {
+  const typeMap = {
+    methodological: "type-methodological",
+    contradictory: "type-contradictory",
+    complementary: "type-complementary",
+    citation: "type-citation",
+  };
+  return typeMap[type.toLowerCase()] || "type-default";
 }
 
 function getSiteName(url) {
@@ -416,6 +482,29 @@ function generatePDF(analysis) {
     });
   } else {
     addText("No trajectory suggestions generated", 10);
+    addSpacing(8);
+  }
+
+  addSpacing(10);
+  addSeparator();
+  addSpacing(5);
+
+  // Connections Section
+  addText("PAPER CONNECTIONS", 14, true);
+  addSpacing(8);
+
+  if (analysis.connections && analysis.connections.length > 0) {
+    analysis.connections.forEach((connection, index) => {
+      const connectionText = `${index + 1}. ${
+        connection.paperTitle
+      }\n   Type: ${connection.type} | Strength: ${
+        connection.strength
+      }/10\n   ${stripMarkdown(connection.description)}`;
+      addText(connectionText, 10);
+      addSpacing(10);
+    });
+  } else {
+    addText("No connections found", 10);
     addSpacing(8);
   }
 

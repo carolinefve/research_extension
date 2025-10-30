@@ -312,7 +312,8 @@ body {
 /* Findings and Gaps Lists */
 .findings-list,
 .gaps-list,
-.trajectories-list {
+.trajectories-list,
+.connections-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -402,6 +403,150 @@ body {
   color: var(--text);
 }
 
+/* Connection Styles */
+.connection-item {
+  background: var(--bg-gray);
+  border-left: 4px solid var(--btn);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  transition: all 0.2s;
+}
+
+.connection-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(138, 107, 218, 0.15);
+}
+
+.connection-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.connection-header-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.connection-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.875rem;
+  background: var(--btn);
+  color: white;
+  flex-shrink: 0;
+}
+
+.connection-meta-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.connection-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.connection-type-badge.type-methodological {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.connection-type-badge.type-contradictory {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.connection-type-badge.type-complementary {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.connection-type-badge.type-citation {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.connection-type-badge.type-default {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.connection-strength-badge {
+  background: var(--btn);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.connection-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.connection-paper-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.connection-description {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-light);
+}
+
+.connection-description ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.connection-description li {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.connection-description li:before {
+  content: "•";
+  color: var(--btn);
+  font-weight: bold;
+  font-size: 1.2rem;
+  position: absolute;
+  left: -1rem;
+}
+
+.connection-description p {
+  margin-bottom: 0.5rem;
+}
+
+.connection-description p:last-child {
+  margin-bottom: 0;
+}
+
+.connection-description strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* Loading States */
 .loading-text {
   color: var(--text-lighter);
@@ -472,6 +617,14 @@ body {
 
   .analysis-section {
     padding: 1.5rem;
+  }
+
+  .connection-header-row {
+    flex-direction: column;
+  }
+
+  .connection-meta-top {
+    width: 100%;
   }
 }
 

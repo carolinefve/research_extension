@@ -77,7 +77,7 @@ function renderPapers() {
         !e.target.closest(".connection-badge") &&
         !e.target.closest(".view-details-btn")
       ) {
-        openPaperDetails(filteredPapers[index]);
+        openResultsWindow(filteredPapers[index].timestamp);
       }
     });
   });
@@ -97,12 +97,24 @@ function renderPapers() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const paperId = e.currentTarget.dataset.paperId;
-      const paper = filteredPapers.find((p) => p.timestamp === paperId);
-      if (paper) {
-        openPaperDetails(paper);
-      }
+      openResultsWindow(paperId);
     });
   });
+}
+
+// Helper function to open results in popup window (same as popup.js)
+async function openResultsWindow(analysisId) {
+  try {
+    await chrome.windows.create({
+      url: chrome.runtime.getURL(`results/results.html?id=${analysisId}`),
+      type: "popup",
+      width: 1000,
+      height: 800,
+    });
+  } catch (error) {
+    console.error("Failed to open results window:", error);
+    showNotification("Failed to open results window", "error");
+  }
 }
 
 // Create paper card HTML
@@ -227,7 +239,7 @@ function markdownToHtml(text) {
   return result.join("");
 }
 
-// Open connection modal
+// Open connection modal (kept for connection badge quick view)
 function openConnectionModal(paper) {
   const modal = document.getElementById("connectionModal");
   const modalBody = document.getElementById("connectionModalBody");
@@ -268,134 +280,6 @@ function openConnectionModal(paper) {
         )
         .join("")}
     </div>
-  `;
-
-  modal.classList.add("active");
-}
-
-// Open paper details modal - FIXED with markdown rendering
-function openPaperDetails(paper) {
-  const modal = document.getElementById("paperModal");
-  const modalTitle = document.getElementById("paperModalTitle");
-  const modalBody = document.getElementById("paperModalBody");
-
-  modalTitle.textContent = paper.title;
-
-  modalBody.innerHTML = `
-    <div style="margin-bottom: 1.5rem;">
-      <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-        <span style="background: var(--bg-gray); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;">
-          🌐 Source: ${getSiteName(paper.url)}
-        </span>
-        <span style="background: var(--bg-gray); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;">
-          ${new Date(paper.timestamp).toLocaleDateString()}
-        </span>
-      </div>
-      <a href="${
-        paper.url
-      }" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 500;">
-        View Original Paper →
-      </a>
-    </div>
-
-    <div style="margin-bottom: 2rem;">
-      <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">📄 Summary</h3>
-      <p style="line-height: 1.7; color: var(--text-light);">${markdownToHtml(
-        paper.summary
-      )}</p>
-    </div>
-
-    <div style="margin-bottom: 2rem;">
-      <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🎯 Key Findings</h3>
-      <ol style="padding-left: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-        ${paper.keyFindings
-          .map(
-            (finding) => `
-          <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
-            finding
-          )}</li>
-        `
-          )
-          .join("")}
-      </ol>
-    </div>
-
-    <div style="margin-bottom: 2rem;">
-      <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🔬 Methodology</h3>
-      <p style="line-height: 1.7; color: var(--text-light);">${markdownToHtml(
-        paper.methodology
-      )}</p>
-    </div>
-
-    <div style="margin-bottom: 2rem;">
-      <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">💡 Research Gaps</h3>
-      <ol style="padding-left: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-        ${paper.researchGaps
-          .map(
-            (gap) => `
-          <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
-            gap
-          )}</li>
-        `
-          )
-          .join("")}
-      </ol>
-    </div>
-
-    ${
-      paper.trajectorySuggestions && paper.trajectorySuggestions.length > 0
-        ? `
-      <div style="margin-bottom: 2rem;">
-        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🚀 Research Future & Next Steps</h3>
-        <ol style="padding-left: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-          ${paper.trajectorySuggestions
-            .map(
-              (traj) => `
-            <li style="line-height: 1.6; color: var(--text-light);">${markdownToHtml(
-              traj
-            )}</li>
-          `
-            )
-            .join("")}
-        </ol>
-      </div>
-    `
-        : ""
-    }
-
-    ${
-      paper.connections && paper.connections.length > 0
-        ? `
-      <div>
-        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">Connections</h3>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          ${paper.connections
-            .map(
-              (conn) => `
-            <div style="background: var(--bg-gray); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--primary);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span class="connection-type-badge ${conn.type}">${
-                conn.type
-              }</span>
-                <span style="font-size: 0.75rem; color: var(--text-light);">Strength: ${
-                  conn.strength
-                }/10</span>
-              </div>
-              <h4 style="font-size: 0.938rem; font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(
-                conn.paperTitle
-              )}</h4>
-              <p style="font-size: 0.875rem; color: var(--text-light); line-height: 1.5;">${markdownToHtml(
-                conn.description
-              )}</p>
-            </div>
-          `
-            )
-            .join("")}
-        </div>
-      </div>
-    `
-        : ""
-    }
   `;
 
   modal.classList.add("active");
