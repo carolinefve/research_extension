@@ -46,15 +46,14 @@ function renderPapers() {
   if (filteredPapers.length === 0) {
     papersGrid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📄</div>
         <h3>${
           allPapers.length === 0
-            ? "No papers analyzed yet"
+            ? "No papers analysed yet"
             : "No papers match your filters"
         }</h3>
         <p>${
           allPapers.length === 0
-            ? 'Visit arXiv, PubMed, or other supported sites and click "Analyze Paper" to get started'
+            ? 'Visit arXiv, PubMed, or other supported sites and click "Analyse Paper" to get started'
             : "Try adjusting your search or filters to see more results"
         }</p>
       </div>
@@ -121,15 +120,15 @@ function createPaperCard(paper) {
       </div>
       <p class="paper-summary">${escapeHtml(paper.summary)}</p>
       <div class="paper-meta">
-        <span class="meta-tag">📅 ${timeAgo}</span>
-        <span class="meta-tag">🔍 ${paper.keyFindings.length} findings</span>
+        <span class="meta-tag">${timeAgo}</span>
+        <span class="meta-tag">${paper.keyFindings.length} findings</span>
       </div>
       <div class="paper-actions">
         ${
           hasConnections
             ? `
           <button class="connection-badge" data-paper-id="${paper.timestamp}">
-            🔗 ${paper.connections.length} ${
+            ${paper.connections.length} ${
                 paper.connections.length === 1 ? "connection" : "connections"
               }
           </button>
@@ -289,7 +288,7 @@ function openPaperDetails(paper) {
           🌐 Source: ${getSiteName(paper.url)}
         </span>
         <span style="background: var(--bg-gray); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;">
-          📅 ${new Date(paper.timestamp).toLocaleDateString()}
+          ${new Date(paper.timestamp).toLocaleDateString()}
         </span>
       </div>
       <a href="${
@@ -368,7 +367,7 @@ function openPaperDetails(paper) {
       paper.connections && paper.connections.length > 0
         ? `
       <div>
-        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">🔗 Connections</h3>
+        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text);">Connections</h3>
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           ${paper.connections
             .map(
@@ -429,11 +428,6 @@ function setupEventListeners() {
   document
     .getElementById("connectionFilter")
     .addEventListener("change", applyFilters);
-
-  // Export all button
-  document
-    .getElementById("exportAllBtn")
-    .addEventListener("click", exportAllData);
 
   // Modal close buttons
   document.querySelectorAll(".modal-close").forEach((btn) => {
@@ -522,44 +516,6 @@ function applyFilters() {
   }
 
   renderPapers();
-}
-
-// Export all data
-function exportAllData() {
-  if (allPapers.length === 0) {
-    showNotification("No data to export", "warning");
-    return;
-  }
-
-  const exportData = {
-    exportDate: new Date().toISOString(),
-    totalPapers: allPapers.length,
-    papers: allPapers.map((paper) => ({
-      title: paper.title,
-      url: paper.url,
-      timestamp: paper.timestamp,
-      confidence: paper.confidence,
-      summary: paper.summary,
-      keyFindings: paper.keyFindings,
-      methodology: paper.methodology,
-      researchGaps: paper.researchGaps,
-      trajectorySuggestions: paper.trajectorySuggestions || [],
-      connections: paper.connections || [],
-    })),
-  };
-
-  const dataStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `research-insights-${
-    new Date().toISOString().split("T")[0]
-  }.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-
-  showNotification("Data exported successfully", "success");
 }
 
 // Show notification

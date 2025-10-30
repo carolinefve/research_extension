@@ -90,17 +90,9 @@ function displayAnalysis(analysis) {
   // Update title
   document.getElementById("paperTitle").textContent = analysis.title;
 
-  // Update sidebar stats
-  document.getElementById("findingsCount").textContent =
-    analysis.keyFindings.length;
-  document.getElementById("gapsCount").textContent =
-    analysis.researchGaps.length;
-  document.getElementById("trajectoriesCount").textContent =
-    analysis.trajectorySuggestions?.length || 0;
-
   // Update paper info
   const timestamp = new Date(analysis.timestamp);
-  document.getElementById("analyzedTime").textContent =
+  document.getElementById("analysedTime").textContent =
     formatDateTime(timestamp);
   document.getElementById("paperSource").textContent = getSiteName(
     analysis.url
@@ -343,7 +335,7 @@ function generatePDF(analysis) {
   doc.text(`URL: ${analysis.url}`, margin, yPos);
   yPos += 6;
   doc.text(
-    `Analyzed: ${new Date(analysis.timestamp).toLocaleString()}`,
+    `Analysed: ${new Date(analysis.timestamp).toLocaleString()}`,
     margin,
     yPos
   );

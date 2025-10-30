@@ -18,7 +18,7 @@ function smartTruncate(text, totalLength = 3500) {
 }
 // --- END NEW ---
 
-class PaperAnalyzer {
+class PaperAnalyser {
   constructor() {
     this.summarizerSession = null;
     this.writerSession = null;
@@ -27,7 +27,7 @@ class PaperAnalyzer {
 
   async initializeAPIs() {
     try {
-      console.log("[Research Insights] Checking API availability...");
+      console.log("[NovaMind] Checking API availability...");
 
       // Check if required APIs exist
       if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
@@ -39,16 +39,13 @@ class PaperAnalyzer {
       // Check Summarizer availability
       const summarizerAvailability = await Summarizer.availability();
       console.log(
-        "[Research Insights] Summarizer availability:",
+        "[NovaMind] Summarizer availability:",
         summarizerAvailability
       );
 
       // Check Writer availability
       const writerAvailability = await Writer.availability();
-      console.log(
-        "[Research Insights] Writer availability:",
-        writerAvailability
-      );
+      console.log("[NovaMind] Writer availability:", writerAvailability);
 
       // Check if APIs are ready
       if (summarizerAvailability === "no" || writerAvailability === "no") {
@@ -56,7 +53,7 @@ class PaperAnalyzer {
       }
 
       // Create Summarizer session
-      console.log("[Research Insights] Creating Summarizer session...");
+      console.log("[NovaMind] Creating Summarizer session...");
       this.summarizerSession = await Summarizer.create({
         type: "teaser",
         format: "plain-text",
@@ -65,17 +62,15 @@ class PaperAnalyzer {
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
             console.log(
-              `[Research Insights] Summarizer download: ${Math.round(
-                e.loaded * 100
-              )}%`
+              `[NovaMind] Summarizer download: ${Math.round(e.loaded * 100)}%`
             );
           });
         },
       });
-      console.log("[Research Insights] ✅ Summarizer session created");
+      console.log("[NovaMind] ✅ Summarizer session created");
 
       // Create Writer session
-      console.log("[Research Insights] Creating Writer session...");
+      console.log("[NovaMind] Creating Writer session...");
       this.writerSession = await Writer.create({
         tone: "formal",
         format: "plain-text",
@@ -84,28 +79,24 @@ class PaperAnalyzer {
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
             console.log(
-              `[Research Insights] Writer download: ${Math.round(
-                e.loaded * 100
-              )}%`
+              `[NovaMind] Writer download: ${Math.round(e.loaded * 100)}%`
             );
           });
         },
       });
-      console.log("[Research Insights] ✅ Writer session created");
+      console.log("[NovaMind] ✅ Writer session created");
 
       // Create LanguageModel session
       if (typeof LanguageModel !== "undefined") {
         try {
           const languageModelAvailability = await LanguageModel.availability();
           console.log(
-            "[Research Insights] LanguageModel availability:",
+            "[NovaMind] LanguageModel availability:",
             languageModelAvailability
           );
 
           if (languageModelAvailability !== "no") {
-            console.log(
-              "[Research Insights] Creating LanguageModel session..."
-            );
+            console.log("[NovaMind] Creating LanguageModel session...");
 
             // Get default parameters
             const params = await LanguageModel.params();
@@ -123,49 +114,43 @@ Keep suggestions clear, actionable, and well-reasoned.`,
               monitor(m) {
                 m.addEventListener("downloadprogress", (e) => {
                   console.log(
-                    `[Research Insights] LanguageModel download: ${Math.round(
+                    `[NovaMind] LanguageModel download: ${Math.round(
                       e.loaded * 100
                     )}%`
                   );
                 });
               },
             });
-            console.log("[Research Insights] ✅ LanguageModel session created");
+            console.log("[NovaMind] ✅ LanguageModel session created");
           } else {
             console.log(
-              "[Research Insights] ⚠️ LanguageModel not ready, trajectory suggestions will be unavailable"
+              "[NovaMind] ⚠️ LanguageModel not ready, trajectory suggestions will be unavailable"
             );
           }
         } catch (languageModelError) {
           console.warn(
-            "[Research Insights] ⚠️ Failed to initialize LanguageModel:",
+            "[NovaMind] ⚠️ Failed to initialize LanguageModel:",
             languageModelError.message
           );
           console.log(
-            "[Research Insights] Extension will work without trajectory suggestions"
+            "[NovaMind] Extension will work without trajectory suggestions"
           );
         }
       } else {
         console.log(
-          "[Research Insights] ⚠️ LanguageModel API not found, trajectory suggestions will be unavailable"
+          "[NovaMind] ⚠️ LanguageModel API not found, trajectory suggestions will be unavailable"
         );
       }
 
       return true;
     } catch (error) {
-      console.error(
-        "[Research Insights] Failed to initialize Chrome AI APIs:",
-        error
-      );
+      console.error("[NovaMind] Failed to initialize Chrome AI APIs:", error);
       return false;
     }
   }
 
-  async analyzePaper(paperData) {
-    console.log(
-      "[Research Insights] Starting paper analysis for:",
-      paperData.title
-    );
+  async analysePaper(paperData) {
+    console.log("[NovaMind] Starting paper analysis for:", paperData.title);
 
     // Helper function to send progress updates via storage (more reliable for service workers)
     const sendProgress = async (progress) => {
@@ -203,20 +188,20 @@ Keep suggestions clear, actionable, and well-reasoned.`,
     };
 
     console.log(
-      "[Research Insights] Original abstract length:",
+      "[NovaMind] Original abstract length:",
       results.abstract.length,
       "chars"
     );
     if (paperData.introductionText) {
       console.log(
-        "[Research Insights] Introduction length:",
+        "[NovaMind] Introduction length:",
         paperData.introductionText.length,
         "chars"
       );
     }
     if (paperData.conclusionText) {
       console.log(
-        "[Research Insights] Conclusion length:",
+        "[NovaMind] Conclusion length:",
         paperData.conclusionText.length,
         "chars"
       );
@@ -236,7 +221,7 @@ Keep suggestions clear, actionable, and well-reasoned.`,
     try {
       // Step 1: Generate summary using Summarizer API
       sendProgress(20);
-      console.log("[Research Insights] Step 1: Generating summary...");
+      console.log("[NovaMind] Step 1: Generating summary...");
       if (this.summarizerSession) {
         const contentToSummarize = paperData.abstract || paperData.content;
         results.summary = await this.summarizerSession.summarize(
@@ -244,14 +229,14 @@ Keep suggestions clear, actionable, and well-reasoned.`,
         );
         successfulSteps++;
         console.log(
-          "[Research Insights] Summary generated:",
+          "[NovaMind] Summary generated:",
           results.summary.substring(0, 100) + "..."
         );
       }
 
       // Step 2: Extract key findings using Writer API
       sendProgress(35);
-      console.log("[Research Insights] Step 2: Extracting key findings...");
+      console.log("[NovaMind] Step 2: Extracting key findings...");
       if (this.writerSession) {
         // --- UPDATED (IMPROVEMENT 2) ---
         const findingsPrompt = `You are a research assistant. Your task is to read the following abstract of an academic paper and extract only the main contributions or key findings.
@@ -268,7 +253,7 @@ ${results.abstract}`;
         results.keyFindings = this.parseFindings(findingsText);
         successfulSteps++;
         console.log(
-          "[Research Insights] Key findings extracted:",
+          "[NovaMind] Key findings extracted:",
           results.keyFindings.length
         );
       }
@@ -276,9 +261,7 @@ ${results.abstract}`;
       // Step 3 (NEW): Extract Research Question from Introduction
       if (this.writerSession && paperData.introductionText) {
         sendProgress(50);
-        console.log(
-          "[Research Insights] Step 3: Extracting research question..."
-        );
+        console.log("[NovaMind] Step 3: Extracting research question...");
         try {
           // --- UPDATED (IMPROVEMENT 1) ---
           const introText = smartTruncate(paperData.introductionText, 3500);
@@ -297,12 +280,12 @@ ${introText}`;
           );
           successfulSteps++;
           console.log(
-            "[Research Insights] Research question extracted:",
+            "[NovaMind] Research question extracted:",
             results.researchQuestion
           );
         } catch (introError) {
           console.warn(
-            "[Research Insights] Failed to extract research question:",
+            "[NovaMind] Failed to extract research question:",
             introError.message
           );
         }
@@ -310,7 +293,7 @@ ${introText}`;
 
       // Step 4 (was 3): Identify methodology using Writer API
       sendProgress(60);
-      console.log("[Research Insights] Step 4: Analyzing methodology...");
+      console.log("[NovaMind] Step 4: Analyzing methodology...");
       if (this.writerSession) {
         // --- UPDATED (IMPROVEMENT 2) ---
         const methodologyPrompt = `You are a research assistant. Read the following abstract and describe the research methodology, techniques, or approaches used.
@@ -323,12 +306,12 @@ ${results.abstract}`;
 
         results.methodology = await this.writerSession.write(methodologyPrompt);
         successfulSteps++;
-        console.log("[Research Insights] Methodology analyzed");
+        console.log("[NovaMind] Methodology analysed");
       }
 
       // Step 5 (was 4, ENHANCED): Identify research gaps using Conclusion
       sendProgress(75);
-      console.log("[Research Insights] Step 5: Identifying research gaps...");
+      console.log("[NovaMind] Step 5: Identifying research gaps...");
       if (this.writerSession) {
         // Use conclusion text if available (much better), otherwise fallback to summary
         const gapSourceText = paperData.conclusionText || results.summary;
@@ -338,7 +321,7 @@ ${results.abstract}`;
         // --- END UPDATE ---
 
         console.log(
-          "[Research Insights] Using gap source:",
+          "[NovaMind] Using gap source:",
           paperData.conclusionText ? "Conclusion" : "Summary"
         );
 
@@ -355,7 +338,7 @@ ${gapSource}`;
         results.researchGaps = this.parseFindings(gapsText);
         successfulSteps++;
         console.log(
-          "[Research Insights] Research gaps identified:",
+          "[NovaMind] Research gaps identified:",
           results.researchGaps.length
         );
       }
@@ -364,7 +347,7 @@ ${gapSource}`;
       if (this.languageModelSession) {
         sendProgress(85);
         console.log(
-          "[Research Insights] Step 6: Generating research trajectory suggestions..."
+          "[NovaMind] Step 6: Generating research trajectory suggestions..."
         );
         try {
           // This prompt is already quite good, as it leverages the new, more accurate gaps
@@ -392,32 +375,32 @@ Example format:
             this.parseTrajectories(trajectoriesText);
           successfulSteps++;
           console.log(
-            "[Research Insights] Trajectory suggestions generated:",
+            "[NovaMind] Trajectory suggestions generated:",
             results.trajectorySuggestions.length
           );
         } catch (languageModelError) {
           console.warn(
-            "[Research Insights] Failed to generate trajectories:",
+            "[NovaMind] Failed to generate trajectories:",
             languageModelError.message
           );
           // Continue without trajectories
         }
       } else {
         console.log(
-          "[Research Insights] ⚠️ Skipping trajectory suggestions (LanguageModel not available)"
+          "[NovaMind] ⚠️ Skipping trajectory suggestions (LanguageModel not available)"
         );
       }
 
       // Calculate confidence score
       results.confidence = Math.round((successfulSteps / totalSteps) * 100);
       console.log(
-        "[Research Insights] Analysis complete with confidence:",
+        "[NovaMind] Analysis complete with confidence:",
         results.confidence + "%"
       );
 
       return { success: true, data: results };
     } catch (error) {
-      console.error("[Research Insights] Error during paper analysis:", error);
+      console.error("[NovaMind] Error during paper analysis:", error);
       return { success: false, error: error.message };
     }
   }
@@ -433,16 +416,13 @@ Example format:
       )
       .filter((line) => line.length > 20);
 
-    console.log("[Research Insights] Parsed findings:", lines.length);
+    console.log("[NovaMind] Parsed findings:", lines.length);
     return lines.slice(0, 4);
   }
 
   // Parse trajectory suggestions that may span multiple lines
   parseTrajectories(text) {
-    console.log(
-      "[Research Insights] Parsing trajectory text:",
-      text.substring(0, 200)
-    );
+    console.log("[NovaMind] Parsing trajectory text:", text.substring(0, 200));
 
     // Split on numbered list markers (1., 2., 3., etc.)
     const items = text.split(/\n(?=\d+\.\s)/);
@@ -486,15 +466,12 @@ Example format:
         return !isPreamble;
       });
 
-    console.log(
-      "[Research Insights] Parsed trajectories:",
-      trajectories.length
-    );
+    console.log("[NovaMind] Parsed trajectories:", trajectories.length);
     return trajectories.slice(0, 5);
   }
 
   async cleanup() {
-    console.log("[Research Insights] Cleaning up analyzer sessions");
+    console.log("[NovaMind] Cleaning up analyser sessions");
     if (this.summarizerSession) {
       this.summarizerSession.destroy();
     }
@@ -515,14 +492,14 @@ class ConnectionDetector {
 
   async detectConnections(newPaper, previousPapers) {
     console.log(
-      "[Research Insights] Detecting connections with",
+      "[NovaMind] Detecting connections with",
       previousPapers.length,
       "previous papers"
     );
 
     if (!this.languageModelSession) {
       console.warn(
-        "[Research Insights] ⚠️ LanguageModel not available, skipping connections"
+        "[NovaMind] ⚠️ LanguageModel not available, skipping connections"
       );
       return [];
     }
@@ -534,7 +511,7 @@ class ConnectionDetector {
     for (let i = 0; i < papersToCompare.length; i++) {
       const oldPaper = papersToCompare[i];
       console.log(
-        `[Research Insights] Comparing with paper ${i + 1}/${
+        `[NovaMind] Comparing with paper ${i + 1}/${
           papersToCompare.length
         }: "${oldPaper.title.substring(0, 50)}..."`
       );
@@ -543,17 +520,15 @@ class ConnectionDetector {
         const connection = await this.comparePapers(newPaper, oldPaper);
         if (connection) {
           console.log(
-            `[Research Insights] ✅ Connection found: ${connection.type} (strength: ${connection.strength})`
+            `[NovaMind] ✅ Connection found: ${connection.type} (strength: ${connection.strength})`
           );
           connections.push(connection);
         } else {
-          console.log(
-            `[Research Insights] ❌ No significant connection detected`
-          );
+          console.log(`[NovaMind] ❌ No significant connection detected`);
         }
       } catch (error) {
         console.error(
-          `[Research Insights] ❌ Failed to detect connection with "${oldPaper.title.substring(
+          `[NovaMind] ❌ Failed to detect connection with "${oldPaper.title.substring(
             0,
             50
           )}...":`,
@@ -562,9 +537,7 @@ class ConnectionDetector {
       }
     }
 
-    console.log(
-      `[Research Insights] Total connections found: ${connections.length}`
-    );
+    console.log(`[NovaMind] Total connections found: ${connections.length}`);
     return connections;
   }
 
@@ -597,12 +570,12 @@ class ConnectionDetector {
     const paper2Text = paper2Content.substring(0, 800);
 
     console.log(
-      "[Research Insights] Paper 1 content length:",
+      "[NovaMind] Paper 1 content length:",
       paper1Text.length,
       "chars"
     );
     console.log(
-      "[Research Insights] Paper 2 content length:",
+      "[NovaMind] Paper 2 content length:",
       paper2Text.length,
       "chars"
     );
@@ -655,39 +628,33 @@ STRICT Guidelines - Mark as "none" unless:
 If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for any connection.`;
 
     try {
-      console.log("[Research Insights] Sending enhanced comparison request...");
+      console.log("[NovaMind] Sending enhanced comparison request...");
       const response = await this.languageModelSession.prompt(prompt);
 
-      console.log("[Research Insights] Raw response received");
-      console.log("[Research Insights] Response length:", response.length);
-      console.log(
-        "[Research Insights] First 300 chars:",
-        response.substring(0, 300)
-      );
+      console.log("[NovaMind] Raw response received");
+      console.log("[NovaMind] Response length:", response.length);
+      console.log("[NovaMind] First 300 chars:", response.substring(0, 300));
 
       // Clean the response
       const cleanedResponse = this.cleanJsonString(response);
-      console.log("[Research Insights] Cleaned response:", cleanedResponse);
+      console.log("[NovaMind] Cleaned response:", cleanedResponse);
 
       let analysis;
       try {
         analysis = JSON.parse(cleanedResponse);
-        console.log("[Research Insights] ✅ Successfully parsed JSON");
+        console.log("[NovaMind] ✅ Successfully parsed JSON");
       } catch (parseError) {
-        console.error(
-          "[Research Insights] ❌ JSON parse error:",
-          parseError.message
-        );
-        console.error("[Research Insights] Failed to parse:", cleanedResponse);
+        console.error("[NovaMind] ❌ JSON parse error:", parseError.message);
+        console.error("[NovaMind] Failed to parse:", cleanedResponse);
 
         // Try manual extraction as fallback
-        console.log("[Research Insights] Attempting manual extraction...");
+        console.log("[NovaMind] Attempting manual extraction...");
         const manualAnalysis = this.manualExtractJson(cleanedResponse);
         if (manualAnalysis) {
-          console.log("[Research Insights] ✅ Manual extraction successful");
+          console.log("[NovaMind] ✅ Manual extraction successful");
           analysis = manualAnalysis;
         } else {
-          console.log("[Research Insights] ❌ Manual extraction failed");
+          console.log("[NovaMind] ❌ Manual extraction failed");
           return null;
         }
       }
@@ -699,14 +666,11 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
         !analysis.hasOwnProperty("strength") ||
         !analysis.hasOwnProperty("description")
       ) {
-        console.warn(
-          "[Research Insights] Invalid response structure:",
-          analysis
-        );
+        console.warn("[NovaMind] Invalid response structure:", analysis);
         return null;
       }
 
-      console.log("[Research Insights] Analysis result:", {
+      console.log("[NovaMind] Analysis result:", {
         hasConnection: analysis.hasConnection,
         type: analysis.connectionType,
         strength: analysis.strength,
@@ -726,7 +690,7 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
       // STRICT FILTER: Only accept connections with strength >= 7
       if (strength < 7) {
         console.log(
-          `[Research Insights] ❌ Connection strength too low (${strength}), filtering out`
+          `[NovaMind] ❌ Connection strength too low (${strength}), filtering out`
         );
         return null;
       }
@@ -740,11 +704,11 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
         detectedAt: new Date().toISOString(),
       };
 
-      console.log("[Research Insights] Created connection:", connection);
+      console.log("[NovaMind] Created connection:", connection);
       return connection;
     } catch (error) {
-      console.error("[Research Insights] Error in comparePapers:", error);
-      console.error("[Research Insights] Error stack:", error.stack);
+      console.error("[NovaMind] Error in comparePapers:", error);
+      console.error("[NovaMind] Error stack:", error.stack);
       return null;
     }
   }
@@ -777,24 +741,24 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
 
       return null;
     } catch (error) {
-      console.error("[Research Insights] Manual extraction error:", error);
+      console.error("[NovaMind] Manual extraction error:", error);
       return null;
     }
   }
 }
 
-// Global analyzer instance
-const analyzer = new PaperAnalyzer();
+// Global analyser instance
+const analyser = new PaperAnalyser();
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("[Research Insights] Received message:", request.action);
+  console.log("[NovaMind] Received message:", request.action);
 
-  if (request.action === "analyzePaper") {
+  if (request.action === "analysePaper") {
     handleAnalysis(request.paperData)
       .then(sendResponse)
       .catch((err) => {
-        console.error("[Research Insights] Message handler error:", err);
+        console.error("[NovaMind] Message handler error:", err);
         sendResponse({ success: false, error: err.message });
       });
     return true;
@@ -802,7 +766,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkAPIs()
       .then(sendResponse)
       .catch((err) => {
-        console.error("[Research Insights] API check error:", err);
+        console.error("[NovaMind] API check error:", err);
         sendResponse({ available: false, error: err.message });
       });
     return true;
@@ -811,10 +775,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleAnalysis(paperData) {
   try {
-    console.log("[Research Insights] Handling analysis request");
+    console.log("[NovaMind] Handling analysis request");
 
     // Initialize APIs
-    const initialized = await analyzer.initializeAPIs();
+    const initialized = await analyser.initializeAPIs();
     if (!initialized) {
       return {
         success: false,
@@ -823,17 +787,17 @@ async function handleAnalysis(paperData) {
       };
     }
 
-    // Step 1-6: Analyze the paper (this now includes the new Deep Dive steps)
-    const result = await analyzer.analyzePaper(paperData);
+    // Step 1-6: Analyse the paper (this now includes the new Deep Dive steps)
+    const result = await analyser.analysePaper(paperData);
 
     if (!result.success) {
       return result;
     }
 
     // Step 7: Detect connections with previous papers
-    console.log("[Research Insights] === STARTING STEP 7 (Connections) ===");
+    console.log("[NovaMind] === STARTING STEP 7 (Connections) ===");
 
-    if (analyzer.languageModelSession) {
+    if (analyser.languageModelSession) {
       // Send progress update via storage (more reliable)
       try {
         await chrome.storage.local.set({ analysisProgress: 90 });
@@ -848,77 +812,70 @@ async function handleAnalysis(paperData) {
       }
 
       console.log(
-        "[Research Insights] Step 7: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
+        "[NovaMind] Step 7: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
       );
       console.log(
-        "[Research Insights] LanguageModel session exists:",
-        !!analyzer.languageModelSession
+        "[NovaMind] LanguageModel session exists:",
+        !!analyser.languageModelSession
       );
 
       try {
         // Get previous analyses
         const { analyses = [] } = await chrome.storage.local.get("analyses");
         console.log(
-          "[Research Insights] Found",
+          "[NovaMind] Found",
           analyses.length,
           "previous analyses in storage"
         );
 
         if (analyses.length > 0) {
-          console.log("[Research Insights] Creating ConnectionDetector...");
+          console.log("[NovaMind] Creating ConnectionDetector...");
           const detector = new ConnectionDetector(
-            analyzer.languageModelSession
+            analyser.languageModelSession
           );
 
-          console.log(
-            "[Research Insights] Starting enhanced connection detection..."
-          );
+          console.log("[NovaMind] Starting enhanced connection detection...");
           result.data.connections = await detector.detectConnections(
             result.data,
             analyses
           );
 
           console.log(
-            "[Research Insights] ✅ Connection detection complete. Found",
+            "[NovaMind] ✅ Connection detection complete. Found",
             result.data.connections.length,
             "connections"
           );
         } else {
-          console.log(
-            "[Research Insights] No previous papers to compare against"
-          );
+          console.log("[NovaMind] No previous papers to compare against");
           result.data.connections = [];
         }
       } catch (error) {
-        console.error(
-          "[Research Insights] ❌ Failed to detect connections:",
-          error
-        );
-        console.error("[Research Insights] Error stack:", error.stack);
+        console.error("[NovaMind] ❌ Failed to detect connections:", error);
+        console.error("[NovaMind] Error stack:", error.stack);
         result.data.connections = [];
       }
     } else {
       console.warn(
-        "[Research Insights] ⚠️ LanguageModel session not available, skipping connection detection"
+        "[NovaMind] ⚠️ LanguageModel session not available, skipping connection detection"
       );
       console.log(
-        "[Research Insights] analyzer.languageModelSession is:",
-        analyzer.languageModelSession
+        "[NovaMind] analyser.languageModelSession is:",
+        analyser.languageModelSession
       );
       result.data.connections = [];
     }
 
-    console.log("[Research Insights] === STEP 7 COMPLETE ===");
+    console.log("[NovaMind] === STEP 7 COMPLETE ===");
 
     // Save with bidirectional connections
-    console.log("[Research Insights] Saving analysis with connections...");
+    console.log("[NovaMind] Saving analysis with connections...");
     await saveAnalysisWithConnections(result.data);
-    console.log("[Research Insights] Analysis saved to storage");
+    console.log("[NovaMind] Analysis saved to storage");
 
     return result;
   } catch (error) {
-    console.error("[Research Insights] Handle analysis error:", error);
-    console.error("[Research Insights] Error stack:", error.stack);
+    console.error("[NovaMind] Handle analysis error:", error);
+    console.error("[NovaMind] Error stack:", error.stack);
     return {
       success: false,
       error: error.message,
@@ -953,10 +910,10 @@ async function checkAPIs() {
       mode: "real",
     };
 
-    console.log("[Research Insights] API check result:", result);
+    console.log("[NovaMind] API check result:", result);
     return result;
   } catch (error) {
-    console.error("[Research Insights] API check error:", error);
+    console.error("[NovaMind] API check error:", error);
     return {
       available: false,
       error: error.message,
@@ -967,12 +924,12 @@ async function checkAPIs() {
 
 async function saveAnalysisWithConnections(analysisData) {
   try {
-    console.log("[Research Insights] Starting save with connections...");
+    console.log("[NovaMind] Starting save with connections...");
     const { analyses = [] } = await chrome.storage.local.get("analyses");
 
-    console.log("[Research Insights] Current analyses count:", analyses.length);
+    console.log("[NovaMind] Current analyses count:", analyses.length);
     console.log(
-      "[Research Insights] New paper connections:",
+      "[NovaMind] New paper connections:",
       analysisData.connections?.length || 0
     );
 
@@ -981,11 +938,11 @@ async function saveAnalysisWithConnections(analysisData) {
 
     // Create bidirectional connections
     if (analysisData.connections && analysisData.connections.length > 0) {
-      console.log("[Research Insights] Creating bidirectional connections...");
+      console.log("[NovaMind] Creating bidirectional connections...");
 
       analysisData.connections.forEach((connection, index) => {
         console.log(
-          `[Research Insights] Processing connection ${index + 1}/${
+          `[NovaMind] Processing connection ${index + 1}/${
             analysisData.connections.length
           }`
         );
@@ -997,7 +954,7 @@ async function saveAnalysisWithConnections(analysisData) {
 
         if (connectedPaper) {
           console.log(
-            "[Research Insights] Found connected paper:",
+            "[NovaMind] Found connected paper:",
             connectedPaper.title.substring(0, 50) + "..."
           );
 
@@ -1019,48 +976,46 @@ async function saveAnalysisWithConnections(analysisData) {
               description: connection.description,
               detectedAt: connection.detectedAt,
             });
-            console.log("[Research Insights] Added reverse connection");
+            console.log("[NovaMind] Added reverse connection");
           } else {
-            console.log(
-              "[Research Insights] Reverse connection already exists"
-            );
+            console.log("[NovaMind] Reverse connection already exists");
           }
         } else {
           console.warn(
-            "[Research Insights] Connected paper not found for paperId:",
+            "[NovaMind] Connected paper not found for paperId:",
             connection.paperId
           );
         }
       });
     } else {
-      console.log("[Research Insights] No connections to process");
+      console.log("[NovaMind] No connections to process");
     }
 
     // Limit to 50 papers
     if (analyses.length > 50) {
-      console.log("[Research Insights] Trimming to 50 papers");
+      console.log("[NovaMind] Trimming to 50 papers");
       analyses.length = 50;
     }
 
     await chrome.storage.local.set({ analyses });
     console.log(
-      "[Research Insights] ✅ Saved analysis with connections, total count:",
+      "[NovaMind] ✅ Saved analysis with connections, total count:",
       analyses.length
     );
   } catch (error) {
-    console.error("[Research Insights] ❌ Failed to save analysis:", error);
-    console.error("[Research Insights] Error stack:", error.stack);
+    console.error("[NovaMind] ❌ Failed to save analysis:", error);
+    console.error("[NovaMind] Error stack:", error.stack);
   }
 }
 
 chrome.runtime.onSuspend.addListener(() => {
-  console.log("[Research Insights] Extension suspending, cleaning up");
-  analyzer.cleanup();
+  console.log("[NovaMind] Extension suspending, cleaning up");
+  analyser.cleanup();
 });
 
 // Handle keyboard commands
 chrome.commands.onCommand.addListener((command) => {
-  console.log("[Research Insights] Command received:", command);
+  console.log("[NovaMind] Command received:", command);
 
   if (command === "open_dashboard") {
     // Open dashboard in a new tab
@@ -1070,14 +1025,14 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
-console.log("[Research Insights] Background service worker initialized");
+console.log("[NovaMind] Background service worker initialized");
 
 (async () => {
   try {
-    console.log("[Research Insights] Checking initial API availability...");
+    console.log("[NovaMind] Checking initial API availability...");
     const result = await checkAPIs();
-    console.log("[Research Insights] Startup API check:", result);
+    console.log("[NovaMind] Startup API check:", result);
   } catch (error) {
-    console.error("[Research Insights] Startup check failed:", error);
+    console.error("[NovaMind] Startup check failed:", error);
   }
 })();

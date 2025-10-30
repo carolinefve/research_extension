@@ -33,7 +33,6 @@ body {
   flex-direction: column;
 }
 
-/* Header - Updated to match popup */
 .results-header {
   background: var(--primary);
   color: white;
@@ -60,12 +59,11 @@ body {
 }
 
 .logo-icon {
-  font-size: 1.75rem;
+  width: 3rem;
 }
 
-.logo-text {
-  font-size: 1.25rem;
-  font-weight: 600;
+.logo-name {
+  width: 10rem;
 }
 
 .header-right {
@@ -105,13 +103,6 @@ body {
   margin: 0 auto;
 }
 
-/* Sidebar */
-.results-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
 .sidebar-section {
   background: var(--bg);
   border-radius: var(--radius);
@@ -126,38 +117,6 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.stat-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.stat-item:first-child {
-  padding-top: 0;
-}
-
-.stat-icon {
-  font-size: 1.5rem;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-light);
 }
 
 .paper-meta {

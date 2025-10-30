@@ -6,9 +6,8 @@ const modals = {
 
 const settingsBtn = document.getElementById("settingsBtn");
 const helpBtn = document.getElementById("helpBtn");
-const analyzeBtn = document.getElementById("analyzeBtn");
+const analyseBtn = document.getElementById("analyseBtn");
 
-const autoAnalyzeToggle = document.getElementById("autoAnalyze");
 const summaryLengthSelect = document.getElementById("summaryLength");
 const connectionDetectionToggle = document.getElementById(
   "connectionDetection"
@@ -76,18 +75,18 @@ async function checkSiteDetection() {
       action: "detectSite",
     });
 
-    // Simply enable/disable the analyze button based on detection
+    // Simply enable/disable the analyse button based on detection
     if (response && response.detected) {
-      analyzeBtn.disabled = false;
-      console.log(`[Research Insights] Detected ${response.site} paper`);
+      analyseBtn.disabled = false;
+      console.log(`[NovaMind] Detected ${response.site} paper`);
     } else {
-      analyzeBtn.disabled = true;
-      console.log("[Research Insights] No supported site detected");
+      analyseBtn.disabled = true;
+      console.log("[NovaMind] No supported site detected");
     }
   } catch (error) {
     console.error("Failed to detect site:", error);
     // Don't disable button on error - might just be wrong page type
-    analyzeBtn.disabled = false;
+    analyseBtn.disabled = false;
   }
 }
 
@@ -121,8 +120,8 @@ async function checkForDuplicate(paperUrl) {
   return analyses.find((analysis) => analysis.url === paperUrl);
 }
 
-async function analyzePaper() {
-  if (isAnalyzing) return;
+async function analysePaper() {
+  if (isAnalysing) return;
 
   try {
     // Get current tab and extract content first to check for duplicates
@@ -143,7 +142,7 @@ async function analyzePaper() {
     const existingPaper = await checkForDuplicate(contentResponse.data.url);
 
     if (existingPaper) {
-      console.log("[Research Insights] Found existing analysis for this paper");
+      console.log("[NovaMind] Found existing analysis for this paper");
 
       // Automatically open the existing analysis (no notification)
       await openResultsWindow(existingPaper.timestamp);
@@ -151,8 +150,8 @@ async function analyzePaper() {
     }
 
     // Continue with analysis for new papers
-    isAnalyzing = true;
-    analyzeBtn.disabled = true;
+    isAnalysing = true;
+    analyseBtn.disabled = true;
     updateAnalysisProgress(0);
 
     // Start polling for progress updates from storage
@@ -170,10 +169,10 @@ async function analyzePaper() {
     }, 100); // Poll every 100ms for smooth progress updates
 
     try {
-      // Analyze with Chrome AI APIs
+      // Analyse with Chrome AI APIs
       updateAnalysisProgress(15);
       const analysisResponse = await chrome.runtime.sendMessage({
-        action: "analyzePaper",
+        action: "analysePaper",
         paperData: contentResponse.data,
       });
 
@@ -199,7 +198,7 @@ async function analyzePaper() {
     } catch (error) {
       console.error("Analysis error:", error);
       setStatus("error", "Error");
-      showNotification(error.message || "Failed to analyze paper", "error");
+      showNotification(error.message || "Failed to analyse paper", "error");
 
       // Reset to ready status after 3 seconds
       setTimeout(async () => {
@@ -209,10 +208,10 @@ async function analyzePaper() {
       // Stop polling for progress updates
       clearInterval(progressInterval);
 
-      isAnalyzing = false;
-      analyzeBtn.disabled = false;
-      analyzeBtn.innerHTML =
-        '<span class="btn-icon">🔍</span><div class="btn-content"><span class="btn-text">Analyze Current Page</span></div>';
+      isAnalysing = false;
+      analyseBtn.disabled = false;
+      analyseBtn.innerHTML =
+        '<div class="btn-content"><span class="btn-text">Analyse Current Page</span></div>';
     }
   } catch (error) {
     console.error("Pre-analysis error:", error);
@@ -221,7 +220,7 @@ async function analyzePaper() {
 }
 
 function updateAnalysisProgress(percentage) {
-  analyzeBtn.innerHTML = `<span class="btn-icon">${percentage}%</span><div class="btn-content"><span class="btn-text">Analyzing...</span></div>`;
+  analyseBtn.innerHTML = `<span class="btn-icon">${percentage}%</span><div class="btn-content"><span class="btn-text">Analysing...</span></div>`;
 }
 
 // View insights dashboard - open in new tab
@@ -239,7 +238,7 @@ async function loadStats() {
     const { analyses = [] } = await chrome.storage.local.get("analyses");
 
     const statNumbers = document.querySelectorAll(".stat-number");
-    statNumbers[0].textContent = analyses.length; // Analyzed count
+    statNumbers[0].textContent = analyses.length; // Analysed count
 
     // Calculate connections (count all connections)
     const totalConnections = analyses.reduce((sum, paper) => {
@@ -263,7 +262,7 @@ async function loadLatestInsight() {
     // If no analyses, show empty state
     if (analyses.length === 0) {
       insightTitle.textContent = "No analyses yet";
-      insightText.textContent = "Analyze your first paper to get started";
+      insightText.textContent = "Analyse your first paper to get started";
       insightItem.style.cursor = "default";
       return;
     }
@@ -294,7 +293,7 @@ async function loadLatestInsight() {
     const timestamp = new Date(latest.timestamp);
     const timeAgo = getTimeAgo(timestamp);
     insightMeta.innerHTML = `
-      <span>📅 ${timeAgo}</span>
+      <span>${timeAgo}</span>
     `;
 
     // Make insight clickable to open results
@@ -356,11 +355,10 @@ function saveSettings() {
 }
 
 // Event Listeners
-analyzeBtn.addEventListener("click", analyzePaper);
+analyseBtn.addEventListener("click", analysePaper);
 settingsBtn.addEventListener("click", () => openModal("settings"));
 helpBtn.addEventListener("click", () => openModal("help"));
 
-autoAnalyzeToggle.addEventListener("change", saveSettings);
 summaryLengthSelect.addEventListener("change", saveSettings);
 connectionDetectionToggle.addEventListener("change", saveSettings);
 
@@ -381,7 +379,7 @@ Object.values(modals).forEach((modal) => {
 
 clearDataBtn.addEventListener("click", async () => {
   const confirmed = confirm(
-    "Are you sure you want to delete all analyzed papers and insights?\n\n" +
+    "Are you sure you want to delete all analysed papers and insights?\n\n" +
       "This action cannot be undone. Consider exporting your data first."
   );
 
@@ -390,7 +388,7 @@ clearDataBtn.addEventListener("click", async () => {
     await loadStats();
     document.querySelector(".insight-title").textContent = "No analyses yet";
     document.querySelector(".insight-text").textContent =
-      "Analyze your first paper to get started";
+      "Analyse your first paper to get started";
     showNotification("All data cleared successfully", "success");
     closeModal(modals.settings);
   }
@@ -462,8 +460,8 @@ document.addEventListener("keydown", (e) => {
 
   if (e.ctrlKey && e.key === "Enter") {
     e.preventDefault();
-    if (!isAnalyzing && !analyzeBtn.disabled) {
-      analyzePaper();
+    if (!isAnalysing && !analyseBtn.disabled) {
+      analysePaper();
     }
   }
 
@@ -513,7 +511,7 @@ function showNotification(message, type = "info") {
 }
 
 // Listen for progress updates from background script
-// Note: We primarily use storage polling (in analyzePaper function) for reliable updates,
+// Note: We primarily use storage polling (in analysePaper function) for reliable updates,
 // but keep this listener as a backup in case direct messaging works
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analysisProgress" && isAnalyzing) {

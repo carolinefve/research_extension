@@ -68,7 +68,7 @@ async function extractPaperContent() {
 
 // Universal extractor that works on any research paper site
 function extractUniversal() {
-  console.log("[Research Insights] Using universal extractor");
+  console.log("[NovaMind] Using universal extractor");
 
   // Strategy 1: Try meta tags (most reliable)
   let title = extractFromMeta();
@@ -316,7 +316,7 @@ function extractIntroductionFromDOM() {
 
       if (introText.length > 100) {
         console.log(
-          "[Research Insights] Extracted introduction text:",
+          "[NovaMind] Extracted introduction text:",
           introText.length,
           "chars"
         );
@@ -324,7 +324,7 @@ function extractIntroductionFromDOM() {
       }
     }
   }
-  console.log("[Research Insights] Could not extract introduction from DOM");
+  console.log("[NovaMind] Could not extract introduction from DOM");
   return null;
 }
 
@@ -373,7 +373,7 @@ function extractConclusionFromDOM() {
 
       if (conclusionText.length > 100) {
         console.log(
-          "[Research Insights] Extracted conclusion text:",
+          "[NovaMind] Extracted conclusion text:",
           conclusionText.length,
           "chars"
         );
@@ -381,7 +381,7 @@ function extractConclusionFromDOM() {
       }
     }
   }
-  console.log("[Research Insights] Could not extract conclusion from DOM");
+  console.log("[NovaMind] Could not extract conclusion from DOM");
   return null;
 }
 
