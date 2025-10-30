@@ -93,7 +93,7 @@ function displayAnalysis(analysis) {
   // Update paper info
   const timestamp = new Date(analysis.timestamp);
   document.getElementById("analysedTime").textContent =
-    formatDateTime(timestamp);
+    formatDateDDMMYYYY(timestamp);
   document.getElementById("paperSource").textContent = getSiteName(
     analysis.url
   );
@@ -293,6 +293,14 @@ function formatDateTime(date) {
     month: "short",
     day: "numeric",
   });
+}
+
+function formatDateDDMMYYYY(date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
 }
 
 function escapeHtml(text) {
