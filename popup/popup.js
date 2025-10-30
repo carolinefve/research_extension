@@ -12,7 +12,7 @@ const summaryLengthSelect = document.getElementById("summaryLength");
 const connectionDetectionToggle = document.getElementById(
   "connectionDetection"
 );
-const autoAnalyzeToggle = document.getElementById("autoAnalyze");
+const autoAnalyseToggle = document.getElementById("autoAnalyse");
 const clearDataBtn = document.getElementById("clearDataBtn");
 
 // State
@@ -337,7 +337,7 @@ function loadSettings() {
       connectionDetection: true,
     };
 
-    autoAnalyzeToggle.checked = settings.autoAnalyze;
+    autoAnalyseToggle.checked = settings.autoAnalyse;
     summaryLengthSelect.value = settings.summaryLength;
     connectionDetectionToggle.checked = settings.connectionDetection;
   });
@@ -345,7 +345,7 @@ function loadSettings() {
 
 function saveSettings() {
   const settings = {
-    autoAnalyze: autoAnalyzeToggle.checked,
+    autoAnalyze: autoAnalyseToggle.checked,
     summaryLength: summaryLengthSelect.value,
     connectionDetection: connectionDetectionToggle.checked,
   };
