@@ -2,10 +2,12 @@
 let allPapers = [];
 let filteredPapers = [];
 let currentSort = "recent";
+let allHighlights = [];
 
 // Initialize dashboard
 async function initializeDashboard() {
   await loadPapers();
+  await loadHighlights();
   updateStats();
   renderPapers();
   setupEventListeners();
@@ -21,6 +23,17 @@ async function loadPapers() {
   } catch (error) {
     console.error("[Dashboard] Failed to load papers:", error);
     showNotification("Failed to load papers", "error");
+  }
+}
+
+// Load highlights from storage
+async function loadHighlights() {
+  try {
+    const { highlights = [] } = await chrome.storage.local.get("highlights");
+    allHighlights = highlights;
+    console.log("[Dashboard] Loaded", allHighlights.length, "highlights");
+  } catch (error) {
+    console.error("[Dashboard] Failed to load highlights:", error);
   }
 }
 
@@ -285,6 +298,176 @@ function openConnectionModal(paper) {
   modal.classList.add("active");
 }
 
+// Render highlights panel
+function renderHighlightsPanel() {
+  const panelBody = document.getElementById("highlightsPanelBody");
+
+  if (allHighlights.length === 0) {
+    panelBody.innerHTML = `
+      <div class="empty-state-small">
+        <p>No highlights saved yet</p>
+        <p class="hint">Select text on a research paper and choose "Save Highlight" from the context menu</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Group highlights by paper URL
+  const groupedHighlights = {};
+  allHighlights.forEach((highlight) => {
+    const key = highlight.paperUrl;
+    if (!groupedHighlights[key]) {
+      groupedHighlights[key] = {
+        paperTitle: highlight.paperTitle,
+        paperUrl: highlight.paperUrl,
+        highlights: [],
+      };
+    }
+    groupedHighlights[key].highlights.push(highlight);
+  });
+
+  // Convert to array and sort by most recent highlight
+  const groups = Object.values(groupedHighlights).sort((a, b) => {
+    const aLatest = Math.max(...a.highlights.map((h) => new Date(h.timestamp)));
+    const bLatest = Math.max(...b.highlights.map((h) => new Date(h.timestamp)));
+    return bLatest - aLatest;
+  });
+
+  panelBody.innerHTML = groups
+    .map(
+      (group) => `
+    <div class="highlight-group" data-paper-url="${escapeHtml(group.paperUrl)}">
+      <div class="highlight-group-header">
+        <div class="highlight-group-title">${escapeHtml(group.paperTitle)}</div>
+        <div class="highlight-count-badge">${
+          group.highlights.length
+        } highlight${group.highlights.length > 1 ? "s" : ""}</div>
+      </div>
+      <div class="highlight-preview">${escapeHtml(
+        group.highlights[0].text.substring(0, 100)
+      )}${group.highlights[0].text.length > 100 ? "..." : ""}</div>
+      <div class="highlight-group-meta">
+        Last added ${getTimeAgo(
+          new Date(
+            Math.max(...group.highlights.map((h) => new Date(h.timestamp)))
+          )
+        )}
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  // Add click handlers to groups
+  document.querySelectorAll(".highlight-group").forEach((group) => {
+    group.addEventListener("click", () => {
+      const paperUrl = group.dataset.paperUrl;
+      openHighlightsModal(paperUrl);
+    });
+  });
+}
+
+// NEW: Open highlights detail modal
+function openHighlightsModal(paperUrl) {
+  const modal = document.getElementById("highlightsModal");
+  const modalTitle = document.getElementById("highlightsModalTitle");
+  const modalBody = document.getElementById("highlightsModalBody");
+
+  // Find highlights for this paper
+  const paperHighlights = allHighlights.filter((h) => h.paperUrl === paperUrl);
+
+  if (paperHighlights.length === 0) {
+    modalBody.innerHTML =
+      '<p style="text-align: center; color: var(--text-light);">No highlights found.</p>';
+    modal.classList.add("active");
+    return;
+  }
+
+  // Sort by timestamp (newest first)
+  const sortedHighlights = [...paperHighlights].sort(
+    (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+  );
+
+  modalTitle.textContent = `Highlights: ${sortedHighlights[0].paperTitle}`;
+
+  modalBody.innerHTML = sortedHighlights
+    .map(
+      (highlight) => `
+    <div class="highlight-item" data-highlight-id="${highlight.id}">
+      <div class="highlight-text">${escapeHtml(highlight.text)}</div>
+      <div class="highlight-meta">
+        <span>Saved ${getTimeAgo(new Date(highlight.timestamp))}</span>
+        <div class="highlight-actions">
+          <button class="delete-highlight-btn" data-highlight-id="${
+            highlight.id
+          }">Delete</button>
+        </div>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  // Add delete handlers
+  modalBody.querySelectorAll(".delete-highlight-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const highlightId = btn.dataset.highlightId;
+      await deleteHighlight(highlightId);
+
+      // Reload and re-render
+      await loadHighlights();
+      renderHighlightsPanel();
+
+      // If no more highlights for this paper, close modal
+      const remainingHighlights = allHighlights.filter(
+        (h) => h.paperUrl === paperUrl
+      );
+      if (remainingHighlights.length === 0) {
+        modal.classList.remove("active");
+      } else {
+        // Re-render modal with updated highlights
+        openHighlightsModal(paperUrl);
+      }
+    });
+  });
+
+  modal.classList.add("active");
+}
+
+// NEW: Delete a highlight
+async function deleteHighlight(highlightId) {
+  try {
+    const { highlights = [] } = await chrome.storage.local.get("highlights");
+    const updatedHighlights = highlights.filter((h) => h.id !== highlightId);
+    await chrome.storage.local.set({ highlights: updatedHighlights });
+    showNotification("Highlight deleted", "success");
+  } catch (error) {
+    console.error("[Dashboard] Failed to delete highlight:", error);
+    showNotification("Failed to delete highlight", "error");
+  }
+}
+
+// NEW: Toggle highlights panel
+function toggleHighlightsPanel() {
+  const panel = document.getElementById("highlightsPanel");
+  const backdrop = document.getElementById("panelBackdrop");
+  const mainContent = document.querySelector(".main-content");
+
+  const isActive = panel.classList.contains("active");
+
+  if (isActive) {
+    panel.classList.remove("active");
+    backdrop.classList.remove("active");
+    mainContent.classList.remove("panel-open");
+  } else {
+    panel.classList.add("active");
+    backdrop.classList.add("active");
+    mainContent.classList.add("panel-open");
+    renderHighlightsPanel();
+  }
+}
+
 // Setup event listeners
 function setupEventListeners() {
   // Search
@@ -313,6 +496,21 @@ function setupEventListeners() {
     .getElementById("connectionFilter")
     .addEventListener("change", applyFilters);
 
+  // Highlights button
+  document.getElementById("highlightsBtn").addEventListener("click", () => {
+    toggleHighlightsPanel();
+  });
+
+  // NEW: Close panel button
+  document.getElementById("closePanelBtn").addEventListener("click", () => {
+    toggleHighlightsPanel();
+  });
+
+  // NEW: Panel backdrop click
+  document.getElementById("panelBackdrop").addEventListener("click", () => {
+    toggleHighlightsPanel();
+  });
+
   // Modal close buttons
   document.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -332,13 +530,24 @@ function setupEventListeners() {
   // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      // Close modals
       document.querySelectorAll(".modal.active").forEach((modal) => {
         modal.classList.remove("active");
       });
+      // Close highlights panel
+      const panel = document.getElementById("highlightsPanel");
+      if (panel.classList.contains("active")) {
+        toggleHighlightsPanel();
+      }
     }
     if (e.ctrlKey && e.key === "f") {
       e.preventDefault();
       searchInput.focus();
+    }
+    // Ctrl+H to toggle highlights
+    if (e.ctrlKey && e.key === "h") {
+      e.preventDefault();
+      toggleHighlightsPanel();
     }
   });
 }

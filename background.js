@@ -735,6 +735,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ available: false, error: err.message });
       });
     return true; // Indicates asynchronous response
+  } else if (request.action === "saveHighlight") {
+    handleSaveHighlight(request)
+      .then(sendResponse)
+      .catch((err) => {
+        sendResponse({ success: false, error: err.message });
+      });
+    return true;
   }
   return false;
 });
@@ -873,6 +880,38 @@ async function saveAnalysisWithConnections(analysisData) {
   }
 }
 
+// Handle saving highlights
+async function handleSaveHighlight(request) {
+  try {
+    const { text, paperTitle, paperUrl, pageUrl } = request;
+
+    const highlight = {
+      id: Date.now().toString(),
+      text: text,
+      paperTitle: paperTitle || "Unknown Paper",
+      paperUrl: paperUrl || pageUrl,
+      pageUrl: pageUrl,
+      timestamp: new Date().toISOString(),
+    };
+
+    const { highlights = [] } = await chrome.storage.local.get("highlights");
+    highlights.unshift(highlight);
+
+    // Keep only last 500 highlights
+    if (highlights.length > 500) {
+      highlights.length = 500;
+    }
+
+    await chrome.storage.local.set({ highlights });
+
+    console.log("[NovaMind] Highlight saved:", highlight.id);
+    return { success: true, highlight };
+  } catch (error) {
+    console.error("[NovaMind] Failed to save highlight:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 chrome.runtime.onSuspend.addListener(() => {
   console.log("[NovaMind] Extension suspending, cleaning up");
   analyser.cleanup();
@@ -914,6 +953,13 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Ask a Question",
     contexts: ["selection"],
   });
+  // NEW: Add highlight context menu item
+  chrome.contextMenus.create({
+    id: "save-highlight",
+    parentId: "novamind-assistant",
+    title: "Save",
+    contexts: ["selection"],
+  });
   console.log("[NovaMind] Context menu created");
 });
 
@@ -921,7 +967,189 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const selectedText = info.selectionText;
   const mode = info.menuItemId;
-  if (!selectedText || !mode.includes("-")) return;
+  if (!selectedText) return;
+
+  // Handle save highlight
+  if (mode === "save-highlight") {
+    let paperTitle = "Untitled Paper";
+    let paperUrl = tab.url; // Default to tab URL
+
+    try {
+      // Validate tab
+      if (!tab || !tab.id || tab.id === -1) {
+        console.warn("[NovaMind] Invalid tab ID, trying to get active tab...");
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (!activeTab || !activeTab.id)
+          throw new Error("Could not get valid tab");
+        tab = activeTab;
+      }
+
+      // --- STRATEGY 1: Ask content.js (The "Smart" way) ---
+      // This will correctly fetch the /abs/ page for arXiv PDFs.
+      console.log(
+        `[NovaMind] Attempting to get full paper data from tab ${tab.id}`
+      );
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: "extractContent",
+      });
+
+      if (response && response.success && response.data) {
+        console.log("[NovaMind] ✅ Success: Got paper data from content.js");
+        paperTitle = response.data.title || paperTitle;
+        paperUrl = response.data.url || paperUrl;
+      } else {
+        // This case means content.js ran but failed
+        console.warn(
+          "[NovaMind] ⚠️ content.js responded with failure. Using fallback.",
+          response ? response.error : "No response"
+        );
+        // We throw an error to trigger the catch block (Strategy 2)
+        throw new Error("content.js failed to extract data");
+      }
+    } catch (error) {
+      // --- STRATEGY 2: Fallback (The "Simple" way) ---
+      // This 'catch' block will trigger if:
+      // 1. chrome.tabs.sendMessage fails (e.g., no content script on the page)
+      // 2. We manually threw an error above because content.js failed.
+      console.warn(
+        `[NovaMind] ⚠️ Failed to get data from content.js (${error.message}). Running simple fallback extractor.`
+      );
+
+      try {
+        const [result] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          // This is the simple function from my *previous* answer.
+          // It will return "arXiv:ID" for arXiv PDFs.
+          func: () => {
+            function getTitleFromURL(url) {
+              const arxivMatch = url.match(
+                /arxiv\.org\/(?:pdf|abs)\/(\d+\.\d+)/
+              );
+              if (arxivMatch) {
+                return `arXiv:${arxivMatch[1]}`;
+              }
+              const filename = url
+                .split("/")
+                .pop()
+                .replace(/\.pdf$/i, "");
+              if (filename && filename.length > 5) {
+                return filename.replace(/[-_]/g, " ");
+              }
+              return null;
+            }
+            const url = window.location.href;
+            let title = null;
+            const titleMeta =
+              document.querySelector('meta[name="citation_title"]') ||
+              document.querySelector('meta[property="og:title"]');
+
+            if (titleMeta && titleMeta.content) {
+              title = titleMeta.content.trim();
+            }
+
+            const isPDF =
+              document.contentType === "application/pdf" ||
+              url.toLowerCase().endsWith(".pdf");
+
+            if (!title && isPDF) {
+              title = getTitleFromURL(url);
+            }
+
+            if (!title) {
+              title = document.title.split("|")[0].split("-")[0].trim();
+            }
+
+            // Final fallback check
+            if (!title || title.startsWith("http") || title.length < 5) {
+              const urlTitle = getTitleFromURL(url);
+              if (urlTitle) title = urlTitle;
+            }
+
+            return { title: title || "Untitled Paper", url: url };
+          },
+        });
+
+        if (result && result.result) {
+          console.log("[NovaMind] ✅ Success: Got title from fallback script");
+          paperTitle = result.result.title;
+          paperUrl = result.result.url;
+        } else {
+          // Final, final fallback
+          console.warn(
+            "[NovaMind] ⚠️ Fallback script also failed. Using tab title."
+          );
+          paperTitle =
+            tab.title.split("|")[0].split("-")[0].trim() || "Untitled Paper";
+          paperUrl = tab.url;
+        }
+      } catch (scriptError) {
+        console.error(
+          "[NovaMind] ❌ Fallback script injection failed:",
+          scriptError
+        );
+        paperTitle =
+          tab.title.split("|")[0].split("-")[0].trim() || "Untitled Paper";
+        paperUrl = tab.url;
+      }
+    }
+
+    // --- SAVE THE HIGHLIGHT ---
+    // At this point, paperTitle and paperUrl contain the best data we could get.
+    try {
+      const saveResponse = await handleSaveHighlight({
+        text: selectedText,
+        paperTitle: paperTitle,
+        paperUrl: paperUrl,
+        pageUrl: tab.url, // pageUrl is *always* the original tab.url
+      });
+
+      if (saveResponse.success) {
+        // Show notification in the page
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (text) => {
+            const notification = document.createElement("div");
+            notification.textContent = "✓ Highlight saved!";
+            Object.assign(notification.style, {
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              background: "#10b981",
+              color: "white",
+              padding: "12px 24px",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: "500",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+              zIndex: "999999",
+              animation: "slideInRight 0.3s ease",
+            });
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+              notification.style.animation = "slideOutRight 0.3s ease";
+              setTimeout(() => notification.remove(), 300);
+            }, 2000);
+          },
+          args: [selectedText],
+        });
+      }
+    } catch (saveError) {
+      console.error(
+        "[NovaMind] ❌ Final save highlight step failed:",
+        saveError
+      );
+    }
+
+    return; // Highlight mode is done
+  } // end if (mode === "save-highlight")
+
+  // --- Existing assistant modes ---
+  if (!mode.includes("-")) return;
 
   // Store the selected text and mode for the assistant window
   await chrome.storage.local.set({

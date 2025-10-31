@@ -54,6 +54,15 @@
               <div class="stat-label">Connections Found</div>
             </div>
           </div>
+          <!-- Highlights Button -->
+          <div class="header-actions">
+            <button
+              class="header-btn"
+              id="highlightsBtn"
+            >
+              <span>Highlights</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -125,6 +134,59 @@
         </section>
       </main>
 
+      <!-- NEW: Highlights Side Panel -->
+      <div
+        class="highlights-panel"
+        id="highlightsPanel"
+      >
+        <div class="highlights-panel-header">
+          <h2>Saved Highlights</h2>
+          <button
+            class="panel-close"
+            id="closePanelBtn"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          class="highlights-panel-body"
+          id="highlightsPanelBody"
+        >
+          <!-- Highlights will be inserted here -->
+          <div class="empty-state-small">
+            <p>No highlights saved yet</p>
+            <p class="hint">
+              Select text on a research paper and choose "Save Highlight" from
+              the context menu
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEW: Highlights Detail Modal -->
+      <div
+        id="highlightsModal"
+        class="modal"
+      >
+        <div class="modal-content modal-large">
+          <div class="modal-header">
+            <h2
+              class="modal-title"
+              id="highlightsModalTitle"
+            >
+              Paper Highlights
+            </h2>
+            <button class="modal-close">×</button>
+          </div>
+          <div
+            class="modal-body"
+            id="highlightsModalBody"
+          >
+            <!-- Highlight details will be inserted here -->
+          </div>
+        </div>
+      </div>
+
       <!-- Connection Details Modal -->
       <div
         id="connectionModal"
@@ -165,6 +227,12 @@
           ></div>
         </div>
       </div>
+
+      <!-- Backdrop for side panel -->
+      <div
+        class="panel-backdrop"
+        id="panelBackdrop"
+      ></div>
     </div>
   </body>
 </html>

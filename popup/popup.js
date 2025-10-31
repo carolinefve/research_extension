@@ -85,9 +85,10 @@ async function checkSiteDetection() {
       console.log("[NovaMind] No supported site detected");
     }
   } catch (error) {
-    console.error("Failed to detect site:", error);
-    // Don't disable button on error - might just be wrong page type
-    analyseBtn.disabled = false;
+    console.error("Failed to detect site:", error.message); // Log just the message for clarity
+
+    analyseBtn.disabled = true;
+    console.log("[NovaMind] No content script, analysis disabled.");
   }
 }
 
