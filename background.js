@@ -327,29 +327,28 @@ ${preparedContext}`;
             const chunk = introText.substring(i, i + CHUNK_SIZE);
 
             if (!researchQuestionFound) {
-              const questionPrompt = `Read this text and identify the main research question or problem statement in 1-2 sentences. If none is found in this text, respond with only the word "NONE".
+              const questionPrompt = `Read this text and identify the main research question or problem statement in 1-2 sentences. If no clear question is stated, briefly explain that.
                 Text:
                 ${chunk}`;
               const qResponse = await this.writerSession.write(questionPrompt);
-              if (
-                qResponse.trim().toUpperCase() !== "NONE" &&
-                qResponse.length > 10
-              ) {
+
+              // We removed the check for "NONE".
+              // Any response with substance will be saved.
+              if (qResponse.length > 10) {
                 researchQuestionFound = qResponse.trim();
               }
             }
 
             if (!methodologyFound) {
-              const methodologyPrompt = `Describe the research methodology from this text in 2-3 sentences. If none is found in this text, respond with only the word "NONE".
+              const methodologyPrompt = `Analyze the following text and concisely summarize the research methodology. Look for descriptions of the experimental setup, data sets, models, or analysis techniques. If no methodology is described, briefly explain that.
                 Text:
                 ${chunk}`;
               const mResponse = await this.writerSession.write(
                 methodologyPrompt
               );
-              if (
-                mResponse.trim().toUpperCase() !== "NONE" &&
-                mResponse.length > 10
-              ) {
+
+              // We removed the check for "NONE".
+              if (mResponse.length > 10) {
                 methodologyFound = mResponse.trim();
               }
             }
@@ -362,7 +361,7 @@ ${preparedContext}`;
           console.log(
             "[NovaMind] No Introduction text. Using Abstract for Methodology."
           );
-          const methodologyPrompt = `Describe the research methodology from this abstract in 2-3 sentences.
+          const methodologyPrompt = `Concisely summarize the research methodology described in this abstract. Look for details on the approach, data, models, or analysis techniques.
               Abstract:
               ${results.abstract}`;
           results.methodology = await this.writerSession.write(
@@ -398,12 +397,15 @@ ${preparedContext}`;
         // Process the source text in chunks.
         for (let i = 0; i < gapSourceText.length; i += CHUNK_SIZE) {
           const chunk = gapSourceText.substring(i, i + CHUNK_SIZE);
-          const gapsPrompt = `Identify 2-3 research gaps or limitations from this text. List them directly, one per line. If none are found, respond with only the word "NONE".
+          const gapsPrompt = `Identify 2-3 research gaps or limitations from this text. List them directly, one per line. If none are found, just respond with "No specific gaps were identified in this section."
           Text:
           ${chunk}`;
           const gapsText = await this.writerSession.write(gapsPrompt);
 
-          if (gapsText.trim().toUpperCase() !== "NONE") {
+          if (
+            gapsText.trim().length > 10 &&
+            !gapsText.toLowerCase().includes("no specific gaps")
+          ) {
             const parsedGaps = gapsText
               .split("\n")
               .filter((g) => g.trim().length > 10)
@@ -520,8 +522,8 @@ class ConnectionDetector {
       return [];
     }
 
-    // Take up to 5 most recent papers for comparison.
-    const papersToCompare = previousPapers.slice(0, 5);
+    // Take up to 10 most recent papers for comparison.
+    const papersToCompare = previousPapers.slice(0, 10);
     const connections = [];
 
     for (let i = 0; i < papersToCompare.length; i++) {
@@ -588,12 +590,11 @@ RULES FOR YOUR RESPONSE:
 2.  **FIND THE LINK:** Look for a shared *specific* problem, a niche concept, a shared theme, or a problem-solution relationship.
 
 3.  **YOUR RESPONSE:**
-    * If a specific, meaningful link is found: Respond with a single, concise sentence that explains the shared theme. Start this sentence with "Connection:"
+      * If a specific, meaningful link is found: Respond with a single, concise sentence that explains the shared theme. Start this sentence with "Connection:"
         * *Good Example: "Connection: Both papers discuss the problem of data fragmentation in scientific research, but from different perspectives."*
     * If no specific, meaningful link is found (or the link is too broad): Respond with ONLY the text "No significant connection."
 
 4.  **LENGTH LIMIT:** Your response, if a connection is found, must not exceed 500 characters.
-
 ---
 Begin Analysis:`;
 
@@ -602,8 +603,7 @@ Begin Analysis:`;
       const response = await this.languageModelSession.prompt(prompt);
       const cleanedResponse = response.trim();
 
-      // 3. The new "filter" logic.
-      // It's still simple, just checking for our stop-phrase.
+      // 3. The "filter" logic.
       if (
         cleanedResponse.toLowerCase().startsWith("no significant connection") ||
         cleanedResponse.length < 10
@@ -615,7 +615,6 @@ Begin Analysis:`;
       }
 
       // 4. If it's not a "no" response, it's the connection.
-      // We clean up the "Connection:" prefix if the AI used it.
       let description = cleanedResponse;
       if (description.toLowerCase().startsWith("connection:")) {
         description = description.substring(11).trim(); // 11 is length of "Connection:" + space
