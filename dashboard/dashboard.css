@@ -1017,3 +1017,29 @@ body {
   font-weight: 600;
   color: var(--text);
 }
+
+.clickable-connection {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clickable-connection:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(138, 107, 218, 0.2);
+  border-left-width: 6px;
+}
+
+.connection-item-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.connection-meta {
+  font-size: 0.75rem;
+  color: var(--text-lighter);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

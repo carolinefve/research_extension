@@ -339,14 +339,17 @@ function openConnectionModal(paper) {
       ${sortedConnections
         .map(
           (conn) => `
-        <div class="connection-item">
-        
+        <div class="connection-item clickable-connection" data-paper-id="${
+          conn.paperId
+        }">
           <h4 class="connection-item-title">${escapeHtml(conn.paperTitle)}</h4>
           <p class="connection-description">${markdownToHtml(
             conn.description
           )}</p>
           <div class="connection-meta">
-            Detected ${getTimeAgo(new Date(conn.detectedAt))}
+            Detected ${getTimeAgo(
+              new Date(conn.detectedAt)
+            )} • Click to view analysis
           </div>
         </div>
       `
@@ -354,6 +357,14 @@ function openConnectionModal(paper) {
         .join("")}
     </div>
   `;
+
+  // Add click handlers to connection items
+  modalBody.querySelectorAll(".clickable-connection").forEach((item) => {
+    item.addEventListener("click", () => {
+      const paperId = item.dataset.paperId;
+      openResultsWindow(paperId);
+    });
+  });
 
   modal.classList.add("active");
 }

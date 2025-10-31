@@ -211,6 +211,22 @@ function displayTrajectories(trajectories) {
   });
 }
 
+// Add this function after the loadAnalysis function
+async function openResultsWindow(analysisId) {
+  try {
+    await chrome.windows.create({
+      url: chrome.runtime.getURL(`results/results.html?id=${analysisId}`),
+      type: "popup",
+      width: 1000,
+      height: 800,
+    });
+  } catch (error) {
+    console.error("Failed to open results window:", error);
+    showNotification("Failed to open results window", true);
+  }
+}
+
+// Modify the displayConnections function
 function displayConnections(connections) {
   const connectionsList = document.getElementById("connectionsList");
   const connectionsBadge = document.getElementById("connectionsBadge");
@@ -225,14 +241,15 @@ function displayConnections(connections) {
     return;
   }
 
-  // NEW: Sort connections by when they were detected (newest first)
+  // Sort connections by when they were detected (newest first)
   const sortedConnections = [...connections].sort(
     (a, b) => new Date(b.detectedAt) - new Date(a.detectedAt)
   );
 
   sortedConnections.forEach((connection, index) => {
     const item = document.createElement("div");
-    item.className = "connection-item";
+    item.className = "connection-item clickable-connection";
+    item.dataset.paperId = connection.paperId;
 
     item.innerHTML = `
       <div class="connection-content">
@@ -246,9 +263,18 @@ function displayConnections(connections) {
           <div class="connection-description">${formatMarkdownText(
             connection.description
           )}</div>
+          <div class="connection-meta-footer">
+            Click to view full analysis →
+          </div>
         </div>
       </div>
     `;
+
+    // Add click handler
+    item.addEventListener("click", () => {
+      openResultsWindow(connection.paperId);
+    });
+
     connectionsList.appendChild(item);
   });
 }

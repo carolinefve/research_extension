@@ -591,3 +591,28 @@ body {
     break-inside: avoid;
   }
 }
+
+.clickable-connection {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clickable-connection:hover {
+  transform: translateX(6px);
+  box-shadow: 0 4px 16px rgba(138, 107, 218, 0.25);
+  border-left-width: 6px;
+}
+
+.connection-meta-footer {
+  font-size: 0.813rem;
+  color: var(--btn);
+  font-weight: 500;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.clickable-connection:hover .connection-meta-footer {
+  color: var(--btn-hover);
+}
