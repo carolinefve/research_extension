@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>NovaMind Assistant</title>
+    <link
+      rel="stylesheet"
+      href="assistant.css"
+    />
+    <script
+      src="assistant.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div class="assistant-container">
+      <!-- Header -->
+      <header class="assistant-header">
+        <div class="header-content">
+          <div class="logo">
+            <img
+              class="logo-icon"
+              src="/images/logo.png"
+              alt="Logo"
+            />
+            <img
+              class="logo-name"
+              src="/images/name.png"
+              alt="NovaMind"
+            />
+          </div>
+          <h1
+            class="mode-title"
+            id="modeTitle"
+          >
+            Processing...
+          </h1>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="assistant-main">
+        <!-- Selected Text Section -->
+        <section class="text-section">
+          <h2 class="section-title">Selected Text</h2>
+          <div
+            class="text-card"
+            id="selectedTextCard"
+          >
+            <p
+              id="selectedText"
+              class="loading-text"
+            >
+              Loading...
+            </p>
+          </div>
+        </section>
+
+        <!-- Question Input (only for Ask mode) -->
+        <section
+          class="question-section"
+          id="questionSection"
+          style="display: none"
+        >
+          <h2 class="section-title">Your Question</h2>
+          <div class="question-input-container">
+            <textarea
+              id="questionInput"
+              class="question-input"
+              placeholder="Ask a question about the selected text..."
+              rows="3"
+            ></textarea>
+            <button
+              id="submitQuestion"
+              class="submit-btn"
+            >
+              <span class="btn-text">Get Answer</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Result Section -->
+        <section class="result-section">
+          <h2 class="section-title">Result</h2>
+          <div
+            class="result-card"
+            id="resultCard"
+          >
+            <div
+              class="loading-state"
+              id="loadingState"
+            >
+              <div class="loading-spinner"></div>
+              <p class="loading-text">Processing...</p>
+            </div>
+            <div
+              id="resultContent"
+              class="result-content"
+              style="display: none"
+            ></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

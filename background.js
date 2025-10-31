@@ -1181,6 +1181,162 @@ chrome.commands.onCommand.addListener((command) => {
 
 console.log("[NovaMind] Background service worker initialized");
 
+// ============================================================================
+// TEXT ASSISTANT CONTEXT MENU
+// ============================================================================
+
+// Create context menu on installation
+chrome.runtime.onInstalled.addListener(() => {
+  // Parent menu item
+  chrome.contextMenus.create({
+    id: "novamind-assistant",
+    title: "NovaMind",
+    contexts: ["selection"],
+  });
+
+  // Simplify option
+  chrome.contextMenus.create({
+    id: "simplify-text",
+    parentId: "novamind-assistant",
+    title: "Simplify",
+    contexts: ["selection"],
+  });
+
+  // Explain option
+  chrome.contextMenus.create({
+    id: "explain-text",
+    parentId: "novamind-assistant",
+    title: "Explain",
+    contexts: ["selection"],
+  });
+
+  // Ask question option
+  chrome.contextMenus.create({
+    id: "ask-question",
+    parentId: "novamind-assistant",
+    title: "Ask a Question",
+    contexts: ["selection"],
+  });
+
+  console.log("[NovaMind] Context menu created");
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const selectedText = info.selectionText;
+  const mode = info.menuItemId;
+
+  if (!selectedText || !mode.includes("-")) return;
+
+  console.log(`[NovaMind] Context menu: ${mode}`);
+  console.log(`[NovaMind] Selected text: ${selectedText.substring(0, 100)}...`);
+
+  // Store the selected text and mode for the assistant window
+  await chrome.storage.local.set({
+    assistantMode: mode,
+    assistantText: selectedText,
+    assistantTimestamp: Date.now(),
+  });
+
+  // Open assistant window
+  const currentWindow = await chrome.windows.getCurrent();
+  await chrome.windows.create({
+    url: chrome.runtime.getURL("assistant/assistant.html"),
+    type: "popup",
+    width: 600,
+    height: 700,
+    left: currentWindow.left + 100,
+    top: currentWindow.top + 50,
+  });
+});
+
+// Handle messages from assistant window
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "processAssistantRequest") {
+    handleAssistantRequest(request)
+      .then(sendResponse)
+      .catch((err) => {
+        console.error("[NovaMind] Assistant error:", err);
+        sendResponse({ success: false, error: err.message });
+      });
+    return true; // Keep channel open for async response
+  }
+});
+
+async function handleAssistantRequest(request) {
+  const { mode, text, question } = request;
+
+  try {
+    // Initialize APIs if needed
+    const initialized = await analyser.initializeAPIs();
+    if (!initialized) {
+      return {
+        success: false,
+        error: "Chrome AI APIs failed to initialize",
+      };
+    }
+
+    let result = "";
+
+    // SIMPLIFY - Use Writer API
+    if (mode === "simplify-text") {
+      if (!analyser.writerSession) {
+        throw new Error("Writer API not available");
+      }
+
+      const simplifyPrompt = `Simplify the following text to make it easier to understand. Keep the main ideas but use clearer language and shorter sentences:
+
+${text}`;
+
+      result = await analyser.writerSession.write(simplifyPrompt);
+    }
+
+    // EXPLAIN - Use Language Model API
+    else if (mode === "explain-text") {
+      if (!analyser.languageModelSession) {
+        throw new Error("Language Model API not available");
+      }
+
+      const explainPrompt = `Explain the following text in detail. Break down the key concepts and provide context:
+
+${text}`;
+
+      result = await analyser.languageModelSession.prompt(explainPrompt);
+    }
+
+    // ASK QUESTION - Use Language Model API
+    else if (mode === "ask-question") {
+      if (!analyser.languageModelSession) {
+        throw new Error("Language Model API not available");
+      }
+
+      if (!question || question.trim().length === 0) {
+        throw new Error("Please enter a question");
+      }
+
+      const askPrompt = `Based on the following text, answer this question: "${question}"
+
+Text:
+${text}
+
+Answer:`;
+
+      result = await analyser.languageModelSession.prompt(askPrompt);
+    }
+
+    return {
+      success: true,
+      result: result.trim(),
+    };
+  } catch (error) {
+    console.error("[NovaMind] Assistant processing error:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
 // Initial check on startup
 (async () => {
   try {

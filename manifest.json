@@ -40,6 +40,10 @@
     }
   ],
 
+  "icons": {
+    "16": "images/logo-16.png"
+  },
+
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
@@ -59,6 +63,9 @@
         "dashboard/dashboard.html",
         "dashboard/dashboard.css",
         "dashboard/dashboard.js",
+        "assistant/assistant.html",
+        "assistant/assistant.css",
+        "assistant/assistant.js",
         "extensions/pdfjs/pdf.min.js",
         "extensions/pdfjs/pdf.worker.min.js"
       ],
