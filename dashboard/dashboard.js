@@ -4,8 +4,8 @@ let filteredPapers = [];
 let currentSort = "recent";
 let allHighlights = [];
 
-// Initialize dashboard
-async function initializeDashboard() {
+// Initialise dashboard
+async function initialiseDashboard() {
   await loadPapers();
   await loadHighlights();
   updateStats();
@@ -608,30 +608,6 @@ function setupEventListeners() {
     });
   });
 
-  // Keyboard shortcuts
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      // Close modals
-      document.querySelectorAll(".modal.active").forEach((modal) => {
-        modal.classList.remove("active");
-      });
-      // Close highlights panel
-      const panel = document.getElementById("highlightsPanel");
-      if (panel.classList.contains("active")) {
-        toggleHighlightsPanel();
-      }
-    }
-    if (e.ctrlKey && e.key === "f") {
-      e.preventDefault();
-      searchInput.focus();
-    }
-    // Ctrl+H to toggle highlights
-    if (e.ctrlKey && e.key === "h") {
-      e.preventDefault();
-      toggleHighlightsPanel();
-    }
-  });
-}
 
 // Apply filters and search
 function applyFilters() {
@@ -727,5 +703,5 @@ function showNotification(message, type = "info") {
   }, 3000);
 }
 
-// Initialize on load
-initializeDashboard();
+// Initialise on load
+initialiseDashboard();

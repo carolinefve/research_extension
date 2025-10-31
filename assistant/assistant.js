@@ -1,8 +1,8 @@
 let currentMode = null;
 let selectedText = null;
 
-// Initialize on load
-async function initialize() {
+// Initialise on load
+async function initialise() {
   try {
     // Get stored data
     const { assistantMode, assistantText, assistantTimestamp } =
@@ -39,7 +39,7 @@ async function initialize() {
       await processRequest();
     }
   } catch (error) {
-    console.error("Initialize error:", error);
+    console.error("Initialise error:", error);
     showError("Failed to load assistant. Please try again.");
   }
 }
@@ -135,7 +135,6 @@ async function processRequest() {
   }
 }
 
-// Add this new function after the initialize() function
 function formatMarkdownText(text) {
   if (!text) return "";
 
@@ -222,12 +221,5 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Keyboard shortcuts
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    window.close();
-  }
-});
-
-// Initialize
-initialize();
+// Initialise
+initialise();

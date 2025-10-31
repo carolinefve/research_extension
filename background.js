@@ -157,8 +157,8 @@ class PaperAnalyser {
     this.languageModelSession = null;
   }
 
-  // Initializes all available Chrome AI APIs (Summarizer, Writer, Rewrite, LanguageModel).
-  async initializeAPIs() {
+  // Initialises all available Chrome AI APIs (Summarizer, Writer, Rewrite, LanguageModel).
+  async initialiseAPIs() {
     try {
       console.log("[NovaMind] Checking API availability...");
 
@@ -185,7 +185,7 @@ class PaperAnalyser {
       const { settings } = await chrome.storage.local.get("settings");
       const userSummaryLength = settings?.summaryLength || "medium";
       console.log(
-        `[NovaMind] Initializing summarizer with length: ${userSummaryLength}`
+        `[NovaMind] Initialising summarizer with length: ${userSummaryLength}`
       );
 
       // Create Summarizer session
@@ -257,7 +257,7 @@ class PaperAnalyser {
       }
       return true;
     } catch (error) {
-      console.error("[NovaMind] Failed to initialize APIs:", error);
+      console.error("[NovaMind] Failed to initialise APIs:", error);
       return false;
     }
   }
@@ -740,13 +740,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Orchestrates the full analysis pipeline.
 async function handleAnalysis(paperData) {
   try {
-    // Step 1: Initialize APIs
-    const initialized = await analyser.initializeAPIs();
-    if (!initialized) {
+    // Step 1: Initialise APIs
+    const initialised = await analyser.initialiseAPIs();
+    if (!initialised) {
       return {
         success: false,
         error:
-          "Chrome AI APIs failed to initialize. Please ensure Gemini Nano is downloaded.",
+          "Chrome AI APIs failed to initialise. Please ensure Gemini Nano is downloaded.",
       };
     }
 
@@ -907,17 +907,6 @@ chrome.runtime.onSuspend.addListener(() => {
   console.log("[NovaMind] Extension suspending, cleaning up");
   analyser.cleanup();
 });
-
-// Handle keyboard commands
-chrome.commands.onCommand.addListener((command) => {
-  if (command === "open_dashboard") {
-    chrome.tabs.create({
-      url: chrome.runtime.getURL("dashboard/dashboard.html"),
-    });
-  }
-});
-
-console.log("[NovaMind] Background service worker initialized");
 
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {
@@ -1177,11 +1166,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function handleAssistantRequest(request) {
   const { mode, text, question } = request;
   try {
-    const initialized = await analyser.initializeAPIs();
-    if (!initialized) {
+    const initialised = await analyser.initialiseAPIs();
+    if (!initialised) {
       return {
         success: false,
-        error: "Chrome AI APIs failed to initialize",
+        error: "Chrome AI APIs failed to initialise",
       };
     }
 

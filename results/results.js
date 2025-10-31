@@ -575,21 +575,6 @@ function showNotification(message, isError = false) {
   }, 3000);
 }
 
-// Keyboard shortcuts
-document.addEventListener("keydown", (e) => {
-  if (e.ctrlKey && e.key === "p") {
-    e.preventDefault();
-    window.print();
-  }
-  if (e.ctrlKey && e.key === "s") {
-    e.preventDefault();
-    document.getElementById("exportBtn").click();
-  }
-  if (e.key === "Escape") {
-    window.close();
-  }
-});
-
 // Add animations
 const style = document.createElement("style");
 style.textContent = `
@@ -604,5 +589,5 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Initialize
+// Initialise
 loadAnalysis();

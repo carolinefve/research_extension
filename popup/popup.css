@@ -707,45 +707,6 @@ body {
   color: var(--text-light);
 }
 
-.shortcuts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.shortcut-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.63rem;
-  background: var(--bg-gray);
-  border-radius: 0.38rem;
-}
-
-.shortcut-keys {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.69rem;
-  color: var(--text-light);
-}
-
-.shortcut-keys kbd {
-  background: var(--bg);
-  border: 1px solid #cbd5e1;
-  border-radius: 0.19rem;
-  padding: 0.19rem 0.38rem;
-  font-size: 0.63rem;
-  font-family: monospace;
-  color: #475569;
-  box-shadow: 0 0.06rem 0.13rem rgba(0, 0, 0, 0.05);
-}
-
-.shortcut-desc {
-  color: var(--text);
-  font-size: 0.75rem;
-}
-
 .features-list {
   display: flex;
   flex-direction: column;

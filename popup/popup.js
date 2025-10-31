@@ -35,8 +35,8 @@ function setStatus(status, text) {
   statusText.textContent = text;
 }
 
-// Initialize popup
-async function initializePopup() {
+// se popup
+async function initialisePopup() {
   await checkSiteDetection();
   await loadStats();
   await loadLatestInsight();
@@ -459,29 +459,6 @@ function downloadAsText(content, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Keyboard shortcuts
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    Object.values(modals).forEach((modal) => {
-      if (modal.classList.contains("active")) {
-        closeModal(modal);
-      }
-    });
-  }
-
-  if (e.ctrlKey && e.key === "Enter") {
-    e.preventDefault();
-    if (!isAnalysing && !analyseBtn.disabled) {
-      analysePaper();
-    }
-  }
-
-  if (e.ctrlKey && e.key === "e") {
-    e.preventDefault();
-    openModal("export");
-  }
-});
-
 function showNotification(message, type = "info") {
   const existing = document.querySelector(".notification");
   if (existing) existing.remove();
@@ -530,5 +507,5 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Initialize on load
-initializePopup();
+// Initialise on load
+initialisePopup();
