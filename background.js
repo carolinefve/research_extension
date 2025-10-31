@@ -153,19 +153,31 @@ class PaperAnalyser {
   constructor() {
     this.summarizerSession = null;
     this.writerSession = null;
+    this.rewriterSession = null;
     this.languageModelSession = null;
   }
 
-  // Initializes all available Chrome AI APIs (Summarizer, Writer, LanguageModel).
+  // Initializes all available Chrome AI APIs (Summarizer, Writer, Rewrite, LanguageModel).
   async initializeAPIs() {
     try {
       console.log("[NovaMind] Checking API availability...");
-      if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
+
+      if (
+        typeof Summarizer === "undefined" ||
+        typeof Writer === "undefined" ||
+        typeof Rewriter === "undefined"
+      ) {
         throw new Error("Required Chrome AI APIs not found");
       }
       const summarizerAvailability = await Summarizer.availability();
       const writerAvailability = await Writer.availability();
-      if (summarizerAvailability === "no" || writerAvailability === "no") {
+      const rewriterAvailability = await Rewriter.availability();
+
+      if (
+        summarizerAvailability === "no" ||
+        writerAvailability === "no" ||
+        rewriterAvailability === "no"
+      ) {
         throw new Error("Required Chrome AI APIs not available");
       }
 
@@ -206,6 +218,16 @@ class PaperAnalyser {
       });
       console.log("[NovaMind] ✅ Writer ready");
 
+      // Create Rewriter session
+      this.rewriterSession = await Rewriter.create({
+        monitor(m) {
+          m.addEventListener("downloadprogress", (e) => {
+            console.log(`[NovaMind] Rewriter: ${Math.round(e.loaded * 100)}%`);
+          });
+        },
+      });
+      console.log("[NovaMind] ✅ Rewriter ready");
+
       // Create LanguageModel session (if available)
       if (typeof LanguageModel !== "undefined") {
         try {
@@ -239,7 +261,6 @@ class PaperAnalyser {
       return false;
     }
   }
-
   // Main analysis function, chunks long texts for processing.
   async analysePaper(paperData) {
     console.log("[NovaMind] Starting analysis:", paperData.title);
@@ -503,6 +524,9 @@ List 3-5 concrete, feasible research suggestions:`;
     }
     if (this.writerSession) {
       this.writerSession.destroy();
+    }
+    if (this.rewriterSession) {
+      this.rewriterSession.destroy();
     }
     if (this.languageModelSession) {
       this.languageModelSession.destroy();
@@ -1163,14 +1187,15 @@ async function handleAssistantRequest(request) {
 
     let result = "";
 
-    // SIMPLIFY - Use Writer API
     if (mode === "simplify-text") {
-      if (!analyser.writerSession) throw new Error("Writer API not available");
-      const simplifyPrompt = `Simplify the following text to make it easier to understand. Keep the main ideas but use clearer language and shorter sentences:
+      if (!analyser.rewriterSession)
+        throw new Error("Rewriter API not available");
 
-${text}`;
-      result = await analyser.writerSession.write(simplifyPrompt);
+      result = await analyser.rewriterSession.rewrite(text, {
+        tone: "more-casual",
+      });
     }
+
     // EXPLAIN - Use Language Model API
     else if (mode === "explain-text") {
       if (!analyser.languageModelSession)
