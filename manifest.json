@@ -4,7 +4,15 @@
   "version": "0.2.0",
   "description": "Transform your browser into an intelligent research partner",
 
-  "permissions": ["storage", "activeTab", "scripting", "tabs", "windows"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "windows",
+    "contextMenus",
+    "scripting"
+  ],
 
   "host_permissions": [
     "*://arxiv.org/*",
@@ -36,7 +44,9 @@
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "images/logo-16.png",
-      "32": "images/logo-32.png"
+      "32": "images/logo-32.png",
+      "48": "images/logo-48.png",
+      "128": "images/logo-128.png"
     }
   },
 
