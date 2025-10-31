@@ -97,7 +97,8 @@ function renderPapers() {
     card.addEventListener("click", (e) => {
       if (
         !e.target.closest(".connection-badge") &&
-        !e.target.closest(".view-details-btn")
+        !e.target.closest(".view-details-btn") &&
+        !e.target.closest(".delete-paper-btn")
       ) {
         openResultsWindow(filteredPapers[index].timestamp);
       }
@@ -120,6 +121,15 @@ function renderPapers() {
       e.stopPropagation();
       const paperId = e.currentTarget.dataset.paperId;
       openResultsWindow(paperId);
+    });
+  });
+
+  // Add delete button handlers
+  document.querySelectorAll(".delete-paper-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const paperId = e.currentTarget.dataset.paperId;
+      await deletePaper(paperId);
     });
   });
 }
@@ -149,6 +159,11 @@ function createPaperCard(paper) {
     <div class="paper-card ${
       hasConnections ? "has-connections" : ""
     }" data-paper-id="${paper.timestamp}">
+      <button class="delete-paper-btn" data-paper-id="${
+        paper.timestamp
+      }" title="Delete paper">
+        ×
+      </button>
       <div class="paper-header">
         <h3 class="paper-title">${escapeHtml(paper.title)}</h3>
       </div>
@@ -175,6 +190,47 @@ function createPaperCard(paper) {
       </div>
     </div>
   `;
+}
+
+// NEW: Delete a paper
+async function deletePaper(paperId) {
+  const paper = allPapers.find((p) => p.timestamp === paperId);
+  if (!paper) return;
+
+  const confirmed = confirm(
+    `Are you sure you want to delete "${paper.title}"?\n\nThis will also remove all connections to this paper from other analyses. This action cannot be undone.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const { analyses = [] } = await chrome.storage.local.get("analyses");
+
+    // Remove the paper
+    const updatedAnalyses = analyses.filter((a) => a.timestamp !== paperId);
+
+    // Remove connections to this paper from other papers
+    updatedAnalyses.forEach((analysis) => {
+      if (analysis.connections && analysis.connections.length > 0) {
+        analysis.connections = analysis.connections.filter(
+          (conn) => conn.paperId !== paperId
+        );
+      }
+    });
+
+    // Save updated analyses
+    await chrome.storage.local.set({ analyses: updatedAnalyses });
+
+    // Reload and re-render
+    await loadPapers();
+    updateStats();
+    applyFilters(); // This will re-render with current filters
+
+    showNotification("Paper deleted successfully", "success");
+  } catch (error) {
+    console.error("[Dashboard] Failed to delete paper:", error);
+    showNotification("Failed to delete paper", "error");
+  }
 }
 
 // Get site name from URL

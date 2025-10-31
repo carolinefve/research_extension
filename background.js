@@ -196,7 +196,7 @@ class PaperAnalyser {
       this.writerSession = await Writer.create({
         tone: "formal",
         format: "plain-text",
-        length: "userSummaryLength",
+        length: userSummaryLength,
         outputLanguage: "en",
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
