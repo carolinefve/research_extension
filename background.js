@@ -924,7 +924,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "save-highlight",
     parentId: "novamind-assistant",
-    title: "Save",
+    title: "Save Highlight",
     contexts: ["selection"],
   });
   console.log("[NovaMind] Context menu created");
