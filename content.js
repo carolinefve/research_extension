@@ -1,4 +1,12 @@
-// Content script to extract paper content from any research website
+if (typeof pdfjsLib !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL(
+    "extensions/pdfjs/pdf.worker.min.js"
+  );
+} else {
+  console.error(
+    "[NovaMind] pdfjsLib is not defined. Check manifest.json content_scripts array."
+  );
+}
 
 function detectSite() {
   const hostname = window.location.hostname;
@@ -84,7 +92,31 @@ function looksLikeResearchPaper() {
 
   if (isPDF) {
     console.log("[NovaMind] Detected PDF document");
-    return true; // PDFs are likely research papers
+    // For PDFs, we'll rely on the URL patterns to determine if it's a research paper
+    // rather than immediately returning true
+    const url = window.location.href.toLowerCase();
+    const researchPdfPatterns = [
+      /arxiv\.org/,
+      /\.edu\/.*\.pdf/,
+      /researchgate\.net/,
+      /academia\.edu/,
+      /doi\.org/,
+      /scholar\.google/,
+      /pubmed/,
+      /ncbi\.nlm\.nih\.gov/,
+      /ieee/,
+      /acm\.org/,
+      /springer/,
+      /sciencedirect/,
+    ];
+
+    const isLikelyResearchPdf = researchPdfPatterns.some((pattern) =>
+      pattern.test(url)
+    );
+    if (isLikelyResearchPdf) {
+      console.log("[NovaMind] PDF appears to be from a research source");
+      return true;
+    }
   }
 
   // Check for common research paper indicators
@@ -117,13 +149,449 @@ function looksLikeResearchPaper() {
   return score >= 3;
 }
 
+/**
+ * NEW HELPER FUNCTION
+ * * Fetches the /abs/ page for an arXiv PDF to get reliable metadata
+ * (title, abstract, authors) and merges it with the parsed PDF text
+ * (introduction, conclusion).
+ */
+async function extractArxivDataFromPdfUrl() {
+  const pdfUrl = window.location.href;
+
+  // 1. Convert PDF URL to /abs/ URL
+  // Handles .../pdf/12345 and .../pdf/12345.pdf
+  const absUrl = pdfUrl.replace("/pdf/", "/abs/").replace(".pdf", "");
+
+  let fetchedTitle = null;
+  let fetchedAbstract = null;
+  let fetchedAuthors = null;
+
+  try {
+    // 2. Fetch the /abs/ page
+    console.log(`[NovaMind] Fetching metadata from ${absUrl}`);
+    const response = await fetch(absUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch /abs/ page: ${response.statusText}`);
+    }
+    const htmlText = await response.text();
+
+    // 3. Parse the HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, "text/html");
+
+    // 4. Extract reliable metadata from the parsed HTML
+
+    // Title
+    const titleElement = doc.querySelector("h1.title");
+    if (titleElement) {
+      fetchedTitle = titleElement.textContent.replace("Title:", "").trim();
+    }
+
+    // Abstract
+    const abstractElement = doc.querySelector("blockquote.abstract-full");
+    if (abstractElement) {
+      fetchedAbstract = abstractElement.textContent
+        .replace(/^Abstract\s*:/i, "")
+        .trim();
+    }
+
+    // Authors
+    const authorsElement = doc.querySelector("div.authors");
+    if (authorsElement) {
+      // Get all author links, map to their text content, and join
+      const authorLinks = authorsElement.querySelectorAll("a");
+      fetchedAuthors = Array.from(authorLinks)
+        .map((a) => a.textContent.trim())
+        .join(", ");
+    }
+
+    console.log("[NovaMind] Successfully fetched metadata from /abs/ page.");
+  } catch (error) {
+    console.warn(
+      "[NovaMind] Could not fetch /abs/ page metadata. Will rely on PDF parsing.",
+      error
+    );
+    // If fetching fails, we'll just fall back to the PDF parser's results.
+  }
+
+  // 5. We STILL need the full text (Intro/Conclusion) from the PDF itself
+  let intro = "";
+  let conclusion = "";
+  let fullText = ""; // For fallback 'content'
+  let parsedTitle = null;
+  let parsedAbstract = null;
+
+  try {
+    if (typeof pdfjsLib === "undefined") {
+      throw new Error("PDF.js library (pdfjsLib) is not loaded.");
+    }
+    fullText = await extractTextFromPDF(pdfUrl);
+    const parsed = parseResearchPaperFromText(fullText);
+
+    intro = parsed.introduction;
+    conclusion = parsed.conclusion;
+    parsedTitle = parsed.title;
+    parsedAbstract = parsed.abstract;
+  } catch (pdfError) {
+    console.error(
+      "[NovaMind] PDF text extraction failed during /abs/ fetch:",
+      pdfError
+    );
+    // If PDF parsing fails, we at least have the /abs/ data
+  }
+
+  // 6. Combine and return the data
+  // Prioritize the fetched data, but use parsed data as a fallback.
+  return {
+    title:
+      fetchedTitle || parsedTitle || extractTitleFromURL() || "Untitled Paper",
+    abstract: fetchedAbstract || parsedAbstract || "",
+    authors: fetchedAuthors || "", // Authors are hard to parse from PDF, so only use fetched
+    content:
+      fetchedAbstract || parsedAbstract || intro || fullText.substring(0, 3000), // Prioritize good content
+    introductionText: intro,
+    conclusionText: conclusion,
+    url: window.location.href,
+    site: "arXiv",
+    extractedFromPDF: true, // We are still on a PDF page
+  };
+}
+
 async function extractPaperContent() {
   const site = detectSite();
   if (!site) {
     return null;
   }
 
+  // ============================================================================
+  // ! ! ! MODIFICATION: Add this special case for arXiv PDFs ! ! !
+  // ============================================================================
+  if (site.key === "arXiv" && isPDFPage()) {
+    console.log(
+      "[NovaMind] arXiv PDF detected. Using /abs/ page fetch strategy."
+    );
+    return await extractArxivDataFromPdfUrl();
+  }
+  // ============================================================================
+  // ! ! ! END OF MODIFICATION ! ! !
+  // ============================================================================
+
+  // Check if we're on a PDF page (for OTHER sites)
+  if (isPDFPage()) {
+    console.log("[NovaMind] PDF detected - using PDF text extraction");
+    return await extractFromPDF();
+  }
+
+  // For HTML pages, use normal extraction
   return extractFromPage();
+}
+
+function isPDFPage() {
+  return (
+    document.contentType === "application/pdf" ||
+    window.location.href.toLowerCase().endsWith(".pdf") ||
+    document.querySelector("embed[type='application/pdf']") ||
+    document.querySelector("object[type='application/pdf']")
+  );
+}
+
+async function extractFromPDF() {
+  try {
+    console.log("[NovaMind] Starting PDF text extraction...");
+
+    // ============================================================================
+    // CHANGED: No longer need to load the library, just check if it exists
+    // ============================================================================
+    if (typeof pdfjsLib === "undefined") {
+      throw new Error("PDF.js library (pdfjsLib) is not loaded.");
+    }
+
+    // Extract text from PDF
+    const pdfUrl = window.location.href;
+    const fullText = await extractTextFromPDF(pdfUrl);
+
+    if (!fullText || fullText.length < 100) {
+      throw new Error("Failed to extract sufficient text from PDF");
+    }
+
+    console.log("[NovaMind] Extracted", fullText.length, "characters from PDF");
+
+    // Parse the paper structure
+    const parsed = parseResearchPaperFromText(fullText);
+
+    const site = detectSite();
+
+    return {
+      title: parsed.title || extractTitleFromURL() || "Untitled Paper",
+      abstract: parsed.abstract || "",
+      authors: "", // PDFs don't easily expose author info
+      content:
+        parsed.abstract || parsed.introduction || fullText.substring(0, 3000),
+      introductionText: parsed.introduction || "",
+      conclusionText: parsed.conclusion || "",
+      url: window.location.href,
+      site: site ? site.key : "PDF",
+      extractedFromPDF: true,
+    };
+  } catch (error) {
+    console.error("[NovaMind] PDF extraction failed:", error);
+    // Fallback to basic extraction
+    return {
+      title: extractTitleFromURL() || "Untitled Paper",
+      abstract:
+        "PDF text extraction failed. Please try the HTML version if available.",
+      authors: "",
+      content: "",
+      introductionText: "",
+      conclusionText: "",
+      url: window.location.href,
+      site: "PDF",
+      extractedFromPDF: false,
+    };
+  }
+}
+
+// ============================================================================
+// DELETED: The entire loadPDFJS() function is no longer needed
+// ============================================================================
+/*
+async function loadPDFJS() {
+  ...
+}
+*/
+
+async function extractTextFromPDF(pdfUrl) {
+  try {
+    const pdfjsLib = window.pdfjsLib;
+
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({
+      url: pdfUrl,
+      verbosity: 0, // Reduce console spam
+    });
+
+    const pdf = await loadingTask.promise;
+    console.log(`[NovaMind] PDF loaded: ${pdf.numPages} pages`);
+
+    // Extract text from first 10 pages (usually contains intro and sometimes conclusion)
+    const maxPages = Math.min(pdf.numPages, 10);
+    let fullText = "";
+
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+
+      // Combine text items with proper spacing
+      const pageText = textContent.items
+        .map((item) => item.str)
+        .join(" ")
+        .replace(/\s+/g, " "); // Normalize spaces
+
+      fullText += pageText + "\n\n";
+
+      if (pageNum % 3 === 0) {
+        console.log(`[NovaMind] Processed ${pageNum}/${maxPages} pages`);
+      }
+    }
+
+    // Also try to get the last few pages for conclusion
+    if (pdf.numPages > maxPages) {
+      const lastPages = Math.max(pdf.numPages - 3, maxPages + 1);
+      for (let pageNum = lastPages; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item) => item.str)
+          .join(" ")
+          .replace(/\s+/g, " ");
+        fullText += pageText + "\n\n";
+      }
+      console.log(
+        `[NovaMind] Also extracted last ${
+          pdf.numPages - lastPages + 1
+        } pages for conclusion`
+      );
+    }
+
+    return fullText;
+  } catch (error) {
+    console.error("[NovaMind] PDF text extraction error:", error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// ! ! ! REPLACED FUNCTION: More robust anchor-based parsing ! ! !
+// ============================================================================
+function parseResearchPaperFromText(fullText) {
+  console.log("[NovaMind] Parsing paper structure from text...");
+  const result = {
+    title: "",
+    abstract: "",
+    introduction: "",
+    conclusion: "",
+  };
+
+  // Clean the text first (replace multiple spaces/newlines)
+  const cleanedText = fullText.replace(/\s+/g, " ").replace(/\n+/g, "\n");
+
+  // 1. Define regex for our section "anchors"
+  // We look for the *start* of these headings.
+  // (?:...|...) = OR group
+  // \b = word boundary (ensures "Abstract" isn't part of "Sub-Abstract")
+  // [\s\n:]* = optional spaces, newlines, or colons after the word
+  const abstractRegex = /\b(Abstract|Summary)\b[\s\n:]*/i;
+  // (?:1\.?|I\.?) = "1" or "I" with an optional period
+  const introRegex = /\b(1\.?|I\.?)\s*Introduction\b/i;
+  // (\d+\.?|[IVX]+\.?) = any number or roman numeral with optional period
+  const conclusionRegex =
+    /\b(\d+\.?|[IVX]+\.?)\s*(Conclusion|Discussion|Limitations|Future Work)\b/i;
+  const referencesRegex =
+    /\b(References|REFERENCES|Bibliography|Acknowledgment[s]?)\b/i;
+
+  // 2. Find the *index* (position) of these anchors
+  const abstractMatch = cleanedText.match(abstractRegex);
+  const introMatch = cleanedText.match(introRegex);
+  const conclusionMatch = cleanedText.match(conclusionRegex);
+  const referencesMatch = cleanedText.match(referencesRegex);
+
+  // Get the *starting* index of the match, or -1 if not found
+  const abstractStartIndex = abstractMatch ? abstractMatch.index : -1;
+  const introStartIndex = introMatch ? introMatch.index : -1;
+  const conclusionStartIndex = conclusionMatch ? conclusionMatch.index : -1;
+  const referencesStartIndex = referencesMatch ? referencesMatch.index : -1;
+
+  // Get the *ending* index (start + length) of the match, or -1
+  const abstractEndIndex = abstractMatch
+    ? abstractStartIndex + abstractMatch[0].length
+    : -1;
+  const introEndIndex = introMatch
+    ? introStartIndex + introMatch[0].length
+    : -1;
+  const conclusionEndIndex = conclusionMatch
+    ? conclusionStartIndex + conclusionMatch[0].length
+    : -1;
+
+  // 3. Determine the "end" points for each section
+  // Title ends where the Abstract starts, or if no Abstract, where Introduction starts
+  const endOfTitleIndex =
+    abstractStartIndex !== -1 ? abstractStartIndex : introStartIndex;
+
+  // Abstract ends where Introduction starts
+  const endOfAbstractIndex = introStartIndex;
+
+  // Introduction ends where Conclusion starts, or if no Conclusion, where References start
+  const endOfIntroIndex =
+    conclusionStartIndex !== -1 ? conclusionStartIndex : referencesStartIndex;
+
+  // Conclusion ends where References start
+  const endOfConclusionIndex = referencesStartIndex;
+
+  // 4. Extract Title
+  if (endOfTitleIndex !== -1) {
+    let titleText = cleanedText.substring(0, endOfTitleIndex).trim();
+    // Clean up common PDF junk (page numbers, arXiv watermarks)
+    titleText = titleText
+      .replace(/arXiv:\d+\.\d+v?\d*\s*\[.*\]\s*\d+\s*\w*\s*\d{4}/gi, "") // Remove arXiv watermarks
+      .replace(/^\d+|\s+\d+$/g, ""); // Remove page numbers at start/end
+
+    // Get the last significant line (or lines) before the anchor, which is usually the title
+    const titleLines = titleText
+      .split("\n")
+      .filter((line) => line.trim().length > 15); // Filter out short junk lines
+    result.title = titleLines.join(" ").replace(/\s+/g, " ").trim(); // Join remaining lines
+  }
+  // Fallback: If no anchors, try to get first long line
+  if (!result.title && cleanedText.length > 100) {
+    const fallbackTitleMatch = cleanedText.match(/^([^\n]{20,300}?)\n/m);
+    if (fallbackTitleMatch) {
+      result.title = fallbackTitleMatch[1].trim();
+    }
+  }
+  console.log("[NovaMind] Extracted title:", result.title.substring(0, 80));
+
+  // 5. Extract Abstract
+  if (abstractEndIndex !== -1 && endOfAbstractIndex !== -1) {
+    // Found a keyword like "Abstract" or "Summary"
+    result.abstract = cleanedText
+      .substring(abstractEndIndex, endOfAbstractIndex)
+      .trim()
+      .substring(0, 3000);
+    console.log(
+      "[NovaMind] Extracted abstract (keyword):",
+      result.abstract.length,
+      "chars"
+    );
+  } else if (introStartIndex !== -1) {
+    // FALLBACK: No "Abstract" keyword. Grab text between Title and Introduction.
+    // This handles the case you mentioned.
+    const start = result.title
+      ? cleanedText.indexOf(result.title) + result.title.length
+      : 0;
+    const end = introStartIndex;
+
+    if (start < end) {
+      result.abstract = cleanedText
+        .substring(start, end)
+        .trim()
+        .substring(0, 3000);
+      console.log(
+        "[NovaMind] Extracted abstract (fallback):",
+        result.abstract.length,
+        "chars"
+      );
+    }
+  }
+
+  // 6. Extract Introduction
+  if (introEndIndex !== -1 && endOfIntroIndex !== -1) {
+    result.introduction = cleanedText
+      .substring(introEndIndex, endOfIntroIndex)
+      .trim()
+      .substring(0, 6000);
+    console.log(
+      "[NovaMind] Extracted introduction:",
+      result.introduction.length,
+      "chars"
+    );
+  }
+
+  // 7. Extract Conclusion
+  if (conclusionEndIndex !== -1 && endOfConclusionIndex !== -1) {
+    result.conclusion = cleanedText
+      .substring(conclusionEndIndex, endOfConclusionIndex)
+      .trim()
+      .substring(0, 4000);
+    console.log(
+      "[NovaMind] Extracted conclusion:",
+      result.conclusion.length,
+      "chars"
+    );
+  }
+
+  return result;
+}
+// ============================================================================
+// ! ! ! END OF REPLACED FUNCTION ! ! !
+// ============================================================================
+
+function extractTitleFromURL() {
+  // Try to extract title from URL
+  const url = window.location.href;
+
+  // For arXiv
+  const arxivMatch = url.match(/arxiv\.org\/(?:pdf|abs)\/(\d+\.\d+)/);
+  if (arxivMatch) {
+    return `arXiv:${arxivMatch[1]}`;
+  }
+
+  // For other URLs, try to get filename
+  const filename = url.split("/").pop().replace(".pdf", "");
+  if (filename && filename.length > 5) {
+    return filename.replace(/[-_]/g, " ");
+  }
+
+  return null;
 }
 
 // Extract paper content from supported research sites
@@ -203,7 +671,7 @@ function extractAbstractFromMeta() {
     'meta[name="DC.description"]',
     'meta[property="og:description"]',
     'meta[name="description"]',
-    'meta[name="twitter:description"]',
+    'meta[name_s="twitter:description"]',
   ];
 
   for (const selector of selectors) {

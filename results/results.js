@@ -40,6 +40,12 @@ function formatMarkdownText(text) {
   // Convert bold text: **text** to <strong>text</strong>
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
+  // === FIX APPLIED HERE ===
+  // Convert italic text: *text* to <em>text</em>
+  // This needs to run AFTER the bold regex to handle bold-italics (***text***)
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  // === END OF FIX ===
+
   // Split into lines and process
   const lines = html.split("\n");
   let inList = false;
@@ -63,7 +69,7 @@ function formatMarkdownText(text) {
         result.push("<ul>");
         inList = true;
       }
-      // Remove the bullet and wrap in <li>, preserve bold formatting
+      // Remove the bullet and wrap in <li>, preserve bold/italic formatting
       const content = line.replace(/^[*\-•]\s+/, "");
       result.push("<li>" + content + "</li>");
     } else {
@@ -215,7 +221,7 @@ function displayConnections(connections) {
 
   if (connections.length === 0) {
     connectionsList.innerHTML =
-      '<p class="loading-text">No connections found with other analyzed papers</p>';
+      '<p class="loading-text">No connections found with other analysed papers</p>';
     return;
   }
 
@@ -387,10 +393,15 @@ function generatePDF(analysis) {
 
   // Helper to strip markdown formatting for PDF
   function stripMarkdown(text) {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold
-      .replace(/^\* /gm, "• ") // Convert bullets
-      .replace(/^- /gm, "• "); // Convert dashes to bullets
+    return (
+      text
+        .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold
+        // === FIX APPLIED HERE ===
+        .replace(/\*(.+?)\*/g, "$1") // Also remove italics
+        // === END OF FIX ===
+        .replace(/^\* /gm, "• ") // Convert bullets
+        .replace(/^- /gm, "• ")
+    ); // Convert dashes to bullets
   }
 
   // Title
@@ -471,6 +482,7 @@ function generatePDF(analysis) {
     addSpacing(8);
   }
 
+  D;
   addSpacing(10);
   addSeparator();
   addSpacing(5);

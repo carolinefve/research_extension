@@ -131,12 +131,28 @@ async function analysePaper() {
       currentWindow: true,
     });
 
+    // Check if it's a PDF URL
+    if (tab.url.toLowerCase().includes(".pdf") || tab.url.includes("/pdf/")) {
+      showNotification(
+        "Extracting text from PDF... This may take a moment.",
+        "info"
+      );
+    }
+
     const contentResponse = await chrome.tabs.sendMessage(tab.id, {
       action: "extractContent",
     });
 
     if (!contentResponse.success || !contentResponse.data) {
       throw new Error("Failed to extract paper content");
+    }
+
+    // Check if extraction was successful for PDF
+    if (contentResponse.data.extractedFromPDF === false) {
+      showNotification(
+        "PDF extraction failed. Try downloading and opening the HTML version.",
+        "warning"
+      );
     }
 
     // NEW: Check for duplicate and automatically show existing analysis
@@ -362,6 +378,7 @@ helpBtn.addEventListener("click", () => openModal("help"));
 
 summaryLengthSelect.addEventListener("change", saveSettings);
 connectionDetectionToggle.addEventListener("change", saveSettings);
+autoAnalyseToggle.addEventListener("change", saveSettings); // This is the corrected line
 
 document.querySelectorAll(".modal-close").forEach((btn) => {
   btn.addEventListener("click", (e) => {

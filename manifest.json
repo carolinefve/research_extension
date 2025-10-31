@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Research Insights",
+  "name": "NovaMind",
   "version": "0.2.0",
   "description": "Transform your browser into an intelligent research partner",
 
@@ -27,7 +27,7 @@
         "*://scholar.google.com/*",
         "*://link.springer.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["extensions/pdfjs/pdf.min.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
@@ -48,7 +48,9 @@
         "results/results.js",
         "dashboard/dashboard.html",
         "dashboard/dashboard.css",
-        "dashboard/dashboard.js"
+        "dashboard/dashboard.js",
+        "extensions/pdfjs/pdf.min.js",
+        "extensions/pdfjs/pdf.worker.min.js"
       ],
       "matches": ["<all_urls>"]
     }
@@ -66,7 +68,7 @@
         "default": "Ctrl+Shift+D",
         "mac": "Command+Shift+D"
       },
-      "description": "Open Research Insights Dashboard"
+      "description": "Open NovaMind Dashboard"
     }
   }
 }

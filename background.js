@@ -1,22 +1,187 @@
-// --- NEW (IMPROVEMENT 1) ---
-/**
- * Truncates text by taking the beginning and the end.
- * @param {string} text The full text to truncate.
- * @param {number} totalLength The total desired character length.
- * @returns {string} The truncated text.
- */
-function smartTruncate(text, totalLength = 3500) {
-  if (!text || text.length <= totalLength) {
+// ============================================================================
+// TOKEN LIMITS & TEXT HELPERS
+// ============================================================================
+const TOKEN_LIMITS = {
+  // Chrome AI actual limits (in tokens)
+  MAX_CONTEXT_TOKENS: 4096, // Total session context
+  MAX_PROMPT_TOKENS: 1024, // Per-prompt limit
+
+  SUMMARIZER_INPUT: 3000, // ~750 tokens input (leaves 274 for prompt+response)
+  WRITER_INPUT: 3000, // ~750 tokens input (safe for Writer API)
+  LANGUAGE_MODEL_INPUT: 3000, // ~750 tokens input (safe for LanguageModel)
+
+  ABSTRACT_MAX: 2000, // ~500 tokens
+  INTRODUCTION_MAX: 3000, // ~750 tokens
+  CONCLUSION_MAX: 3000, // ~750 tokens
+  COMBINED_CONTEXT_MAX: 4000, // ~1000 tokens (for multi-section)
+
+  // Reserved tokens for prompt text
+  PROMPT_OVERHEAD: 200, // ~200 tokens for prompt formatting
+  RESPONSE_TOKENS: 200, // ~200 tokens reserved for response
+};
+
+function calculateSafeInputSize(promptOverheadChars = 800) {
+  const availableTokens =
+    TOKEN_LIMITS.MAX_PROMPT_TOKENS -
+    (TOKEN_LIMITS.PROMPT_OVERHEAD + TOKEN_LIMITS.RESPONSE_TOKENS);
+
+  return Math.floor(availableTokens * 3.5);
+}
+
+function smartTruncate(text, maxLength) {
+  if (!text || text.length <= maxLength) {
     return text || "";
   }
 
-  const halfLength = Math.floor(totalLength / 2);
+  const halfLength = Math.floor(maxLength / 2);
   const start = text.substring(0, halfLength);
   const end = text.substring(text.length - halfLength);
 
-  return start + "\n\n...[Content Truncated]...\n\n" + end;
+  return start + "\n\n...[Content Truncated for Token Limits]...\n\n" + end;
 }
-// --- END NEW ---
+
+/**
+ * IMPROVED: Intelligent truncation with sentence boundaries
+ */
+function intelligentTruncate(text, maxLength) {
+  if (!text || text.length <= maxLength) {
+    return text || "";
+  }
+
+  // Try to split on sentence boundaries
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+
+  let result = "";
+  let currentLength = 0;
+
+  for (const sentence of sentences) {
+    if (currentLength + sentence.length > maxLength) {
+      if (result === "") {
+        // No sentences fit, just truncate
+        return sentence.substring(0, maxLength) + "...";
+      }
+      break;
+    }
+    result += sentence;
+    currentLength += sentence.length;
+  }
+
+  return result.trim();
+}
+
+/**
+ * NEW: Prepare text with token counting (if available)
+ * Uses actual Chrome AI token counting when possible
+ */
+async function prepareTextForAPI(text, apiType = "WRITER", session = null) {
+  if (!text) return "";
+
+  // Get the appropriate limit
+  const charLimit =
+    TOKEN_LIMITS[apiType + "_INPUT"] || TOKEN_LIMITS.WRITER_INPUT;
+
+  // Normalize whitespace
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  // If within limit, check actual tokens if session available
+  if (normalized.length <= charLimit) {
+    // Try to use real token counting if available
+    if (session && typeof session.countPromptTokens === "function") {
+      try {
+        const tokenCount = await session.countPromptTokens(normalized);
+        console.log(`[NovaMind] Actual token count: ${tokenCount} tokens`);
+
+        // If under token limit, return as-is
+        if (
+          tokenCount <=
+          TOKEN_LIMITS.MAX_PROMPT_TOKENS - TOKEN_LIMITS.PROMPT_OVERHEAD
+        ) {
+          return normalized;
+        }
+
+        // Otherwise, we need to truncate more aggressively
+        console.log(`[NovaMind] Token limit exceeded, truncating...`);
+        const safeSize = calculateSafeInputSize();
+        return intelligentTruncate(normalized, safeSize);
+      } catch (error) {
+        console.warn(
+          "[NovaMind] Token counting failed, using char-based limit:",
+          error
+        );
+      }
+    }
+
+    return normalized;
+  }
+
+  // Text exceeds char limit, truncate intelligently
+  console.log(
+    `[NovaMind] Text too long (${normalized.length} chars), truncating to ${charLimit}`
+  );
+  return intelligentTruncate(normalized, charLimit);
+}
+
+/**
+ * NEW: Check session token usage
+ */
+function checkSessionTokens(session, label = "") {
+  if (!session) return;
+
+  try {
+    const tokensSoFar = session.tokensSoFar || 0;
+    const tokensLeft = session.tokensLeft || TOKEN_LIMITS.MAX_CONTEXT_TOKENS;
+
+    console.log(
+      `[NovaMind] ${label} Session tokens: ${tokensSoFar} used, ${tokensLeft} remaining`
+    );
+
+    // Warn if getting close to limit
+    if (tokensLeft < 500) {
+      console.warn(
+        `[NovaMind] WARNING: Only ${tokensLeft} tokens left in session!`
+      );
+    }
+
+    return { tokensSoFar, tokensLeft };
+  } catch (error) {
+    console.warn("[NovaMind] Failed to check session tokens:", error);
+    return null;
+  }
+}
+
+/**
+ * Combine multiple contexts with priority and token awareness
+ */
+function combineContexts(sections, maxTotalLength) {
+  const results = [];
+  let totalLength = 0;
+
+  for (const section of sections) {
+    if (!section.text) continue;
+
+    const available = maxTotalLength - totalLength;
+    if (available <= 100) break; // Need at least 100 chars
+
+    let sectionText = section.text;
+
+    if (sectionText.length > available) {
+      sectionText = intelligentTruncate(sectionText, available);
+    }
+
+    results.push({
+      label: section.label,
+      text: sectionText,
+    });
+
+    totalLength += sectionText.length;
+  }
+
+  return results;
+}
+
+// ============================================================================
+// PAPER ANALYSER CLASS (From File 2)
+// ============================================================================
 
 class PaperAnalyser {
   constructor() {
@@ -29,27 +194,18 @@ class PaperAnalyser {
     try {
       console.log("[NovaMind] Checking API availability...");
 
-      // Check if required APIs exist
       if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
-        throw new Error(
-          "Required Chrome AI APIs (Summarizer, Writer) not found"
-        );
+        throw new Error("Required Chrome AI APIs not found");
       }
 
-      // Check Summarizer availability
       const summarizerAvailability = await Summarizer.availability();
-      console.log(
-        "[NovaMind] Summarizer availability:",
-        summarizerAvailability
-      );
-
-      // Check Writer availability
       const writerAvailability = await Writer.availability();
-      console.log("[NovaMind] Writer availability:", writerAvailability);
 
-      // Check if APIs are ready
+      console.log("[NovaMind] Summarizer:", summarizerAvailability);
+      console.log("[NovaMind] Writer:", writerAvailability);
+
       if (summarizerAvailability === "no" || writerAvailability === "no") {
-        throw new Error("Required Chrome AI APIs not available on this system");
+        throw new Error("Required Chrome AI APIs not available");
       }
 
       // Create Summarizer session
@@ -62,12 +218,12 @@ class PaperAnalyser {
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
             console.log(
-              `[NovaMind] Summarizer download: ${Math.round(e.loaded * 100)}%`
+              `[NovaMind] Summarizer: ${Math.round(e.loaded * 100)}%`
             );
           });
         },
       });
-      console.log("[NovaMind] ✅ Summarizer session created");
+      console.log("[NovaMind] ✅ Summarizer ready");
 
       // Create Writer session
       console.log("[NovaMind] Creating Writer session...");
@@ -78,108 +234,74 @@ class PaperAnalyser {
         outputLanguage: "en",
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
-            console.log(
-              `[NovaMind] Writer download: ${Math.round(e.loaded * 100)}%`
-            );
+            console.log(`[NovaMind] Writer: ${Math.round(e.loaded * 100)}%`);
           });
         },
       });
-      console.log("[NovaMind] ✅ Writer session created");
+      console.log("[NovaMind] ✅ Writer ready");
 
       // Create LanguageModel session
       if (typeof LanguageModel !== "undefined") {
         try {
           const languageModelAvailability = await LanguageModel.availability();
-          console.log(
-            "[NovaMind] LanguageModel availability:",
-            languageModelAvailability
-          );
+          console.log("[NovaMind] LanguageModel:", languageModelAvailability);
 
           if (languageModelAvailability !== "no") {
             console.log("[NovaMind] Creating LanguageModel session...");
-
-            // Get default parameters
             const params = await LanguageModel.params();
 
             this.languageModelSession = await LanguageModel.create({
-              systemPrompt: `You are an expert research advisor analyzing academic papers. Your role is to provide specific, actionable research suggestions that build upon the work presented. When suggesting research directions:
-- Be concrete and specific with methodology suggestions
-- Suggest realistic next steps that researchers can actually pursue
-- Consider practical constraints like data availability and feasibility
-- Identify potential collaborations or interdisciplinary approaches
-- Focus on high-impact research directions that advance the field
-Keep suggestions clear, actionable, and well-reasoned.`,
+              systemPrompt: `You are an expert research advisor. Provide specific, actionable research suggestions that build upon the work presented. Be concrete, realistic, and consider practical constraints.`,
               temperature: params.defaultTemperature,
               topK: params.defaultTopK,
               monitor(m) {
                 m.addEventListener("downloadprogress", (e) => {
                   console.log(
-                    `[NovaMind] LanguageModel download: ${Math.round(
-                      e.loaded * 100
-                    )}%`
+                    `[NovaMind] LanguageModel: ${Math.round(e.loaded * 100)}%`
                   );
                 });
               },
             });
-            console.log("[NovaMind] ✅ LanguageModel session created");
-          } else {
-            console.log(
-              "[NovaMind] ⚠️ LanguageModel not ready, trajectory suggestions will be unavailable"
-            );
+            console.log("[NovaMind] ✅ LanguageModel ready");
           }
-        } catch (languageModelError) {
+        } catch (error) {
           console.warn(
-            "[NovaMind] ⚠️ Failed to initialize LanguageModel:",
-            languageModelError.message
-          );
-          console.log(
-            "[NovaMind] Extension will work without trajectory suggestions"
+            "[NovaMind] ⚠️ LanguageModel unavailable:",
+            error.message
           );
         }
-      } else {
-        console.log(
-          "[NovaMind] ⚠️ LanguageModel API not found, trajectory suggestions will be unavailable"
-        );
       }
 
       return true;
     } catch (error) {
-      console.error("[NovaMind] Failed to initialize Chrome AI APIs:", error);
+      console.error("[NovaMind] Failed to initialize APIs:", error);
       return false;
     }
   }
 
+  // ==========================================================================
+  // ! ! ! UPDATED FUNCTION WITH CHUNKING LOGIC ! ! !
+  // ==========================================================================
   async analysePaper(paperData) {
-    console.log("[NovaMind] Starting paper analysis for:", paperData.title);
+    console.log("[NovaMind] Starting analysis:", paperData.title);
 
-    // Helper function to send progress updates via storage (more reliable for service workers)
     const sendProgress = async (progress) => {
       try {
-        // Store progress in chrome.storage for popup to read
         await chrome.storage.local.set({ analysisProgress: progress });
-
-        // Also try to send message (might work if popup is open)
         chrome.runtime
-          .sendMessage({
-            action: "analysisProgress",
-            progress: progress,
-          })
-          .catch(() => {
-            // Ignore errors if popup is closed
-          });
-      } catch (error) {
-        // Ignore errors
-      }
+          .sendMessage({ action: "analysisProgress", progress })
+          .catch(() => {});
+      } catch (error) {}
     };
 
     const results = {
       title: paperData.title,
       url: paperData.url,
       timestamp: new Date().toISOString(),
-      abstract: paperData.abstract || paperData.content, // Store original abstract
+      abstract: paperData.abstract || paperData.content,
       keyFindings: [],
       methodology: "",
-      researchQuestion: "", // NEW: Field for research question
+      researchQuestion: "",
       researchGaps: [],
       trajectorySuggestions: [],
       connections: [],
@@ -187,291 +309,313 @@ Keep suggestions clear, actionable, and well-reasoned.`,
       summary: "",
     };
 
-    console.log(
-      "[NovaMind] Original abstract length:",
-      results.abstract.length,
-      "chars"
-    );
+    console.log("[NovaMind] Input lengths:");
+    console.log("  Abstract:", results.abstract.length, "chars");
     if (paperData.introductionText) {
       console.log(
-        "[NovaMind] Introduction length:",
+        "  Introduction:",
         paperData.introductionText.length,
         "chars"
       );
     }
     if (paperData.conclusionText) {
-      console.log(
-        "[NovaMind] Conclusion length:",
-        paperData.conclusionText.length,
-        "chars"
-      );
+      console.log("  Conclusion:", paperData.conclusionText.length, "chars");
     }
 
-    // Calculate total steps based on available APIs and data
     let totalSteps = 4; // Base: Summary, Findings, Methodology, Gaps
     let successfulSteps = 0;
 
-    if (this.writerSession && paperData.introductionText) {
-      totalSteps++; // Add step for Research Question
-    }
-    if (this.languageModelSession) {
-      totalSteps++; // Add step for Trajectories
-    }
+    if (this.writerSession && paperData.introductionText) totalSteps++; // Research Question
+    if (this.languageModelSession) totalSteps++; // Trajectories
 
     try {
-      // Step 1: Generate summary using Summarizer API
+      // Step 1: Generate summary (Abstract is usually short, no chunking needed)
       sendProgress(20);
-      console.log("[NovaMind] Step 1: Generating summary...");
+      console.log("[NovaMind] Step 1: Summary");
       if (this.summarizerSession) {
-        const contentToSummarize = paperData.abstract || paperData.content;
+        const contentToSummarize = await prepareTextForAPI(
+          results.abstract,
+          "SUMMARIZER",
+          this.summarizerSession
+        );
         results.summary = await this.summarizerSession.summarize(
           contentToSummarize
         );
+        checkSessionTokens(this.summarizerSession, "After summary");
         successfulSteps++;
-        console.log(
-          "[NovaMind] Summary generated:",
-          results.summary.substring(0, 100) + "..."
-        );
       }
 
-      // Step 2: Extract key findings using Writer API
+      // Step 2: Extract key findings (Also uses abstract, no chunking needed)
       sendProgress(35);
-      console.log("[NovaMind] Step 2: Extracting key findings...");
+      console.log("[NovaMind] Step 2: Key findings");
       if (this.writerSession) {
-        // --- UPDATED (IMPROVEMENT 2) ---
-        const findingsPrompt = `You are a research assistant. Your task is to read the following abstract of an academic paper and extract only the main contributions or key findings.
-- List 2-3 key findings.
-- Be specific and concise.
-- Do NOT add any introductory text like "Here are the findings...".
-- Start directly with the first finding.
-
-Abstract:
-${results.abstract}`;
-        // --- END UPDATE ---
-
-        const findingsText = await this.writerSession.write(findingsPrompt);
-        results.keyFindings = this.parseFindings(findingsText);
-        successfulSteps++;
-        console.log(
-          "[NovaMind] Key findings extracted:",
-          results.keyFindings.length
+        // Use abstract ONLY for findings, per user request
+        const findingsContext = results.abstract;
+        const preparedContext = await prepareTextForAPI(
+          findingsContext,
+          "WRITER",
+          this.writerSession
         );
+
+        const findingsPrompt = `Extract 2-3 key findings from this paper. List them directly, one per line.
+
+Content:
+${preparedContext}`;
+        const findingsText = await this.writerSession.write(findingsPrompt);
+        checkSessionTokens(this.writerSession, "After findings");
+        results.keyFindings = findingsText
+          .split("\n")
+          .filter((f) => f.trim().length > 10)
+          .map((f) => f.replace(/^[-•*\d.]+\s*/, "").trim())
+          .slice(0, 3);
+
+        successfulSteps++;
+        console.log("[NovaMind] Found", results.keyFindings.length, "findings");
       }
 
-      // Step 3 (NEW): Extract Research Question from Introduction
-      if (this.writerSession && paperData.introductionText) {
-        sendProgress(50);
-        console.log("[NovaMind] Step 3: Extracting research question...");
-        try {
-          // --- UPDATED (IMPROVEMENT 1) ---
-          const introText = smartTruncate(paperData.introductionText, 3500);
+      // ====================================================================
+      // CHUNKING LOGIC FOR INTRODUCTION
+      // ====================================================================
+      // Step 3 (Question) & 4 (Methodology)
+      sendProgress(50);
+      console.log("[NovaMind] Step 3/4: Analysing for Q&M...");
+      let researchQuestionFound = "";
 
-          // --- UPDATED (IMPROVEMENT 2) ---
-          const questionPrompt = `You are a research assistant. Read the following introduction from an academic paper and identify the primary research question, problem statement, or hypothesis.
-- Answer in one or two concise sentences.
-- Do NOT add any introductory text.
+      if (this.writerSession) {
+        // --- LOGIC FIX: Check for intro text *before* processing ---
+        if (paperData.introductionText) {
+          // --- 1. TRY INTRODUCTION ---
+          console.log("[NovaMind] Analysing Introduction for Q&M...");
+          const introText = paperData.introductionText;
+          const CHUNK_SIZE = TOKEN_LIMITS.WRITER_INPUT;
+          let methodologyFound = "";
 
-Introduction Text:
-${introText}`;
-          // --- END UPDATE ---
+          for (let i = 0; i < introText.length; i += CHUNK_SIZE) {
+            if (researchQuestionFound && methodologyFound) break;
+            const chunk = introText.substring(i, i + CHUNK_SIZE);
 
-          results.researchQuestion = await this.writerSession.write(
-            questionPrompt
-          );
-          successfulSteps++;
+            if (!researchQuestionFound) {
+              const questionPrompt = `Read this text and identify the main research question or problem statement in 1-2 sentences. If none is found in this text, respond with only the word "NONE".
+                Text:
+                ${chunk}`;
+              const qResponse = await this.writerSession.write(questionPrompt);
+              if (
+                qResponse.trim().toUpperCase() !== "NONE" &&
+                qResponse.length > 10
+              ) {
+                researchQuestionFound = qResponse.trim();
+              }
+            }
+
+            if (!methodologyFound) {
+              const methodologyPrompt = `Describe the research methodology from this text in 2-3 sentences. If none is found in this text, respond with only the word "NONE".
+                Text:
+                ${chunk}`;
+              const mResponse = await this.writerSession.write(
+                methodologyPrompt
+              );
+              if (
+                mResponse.trim().toUpperCase() !== "NONE" &&
+                mResponse.length > 10
+              ) {
+                methodologyFound = mResponse.trim();
+              }
+            }
+          }
+          results.researchQuestion = researchQuestionFound;
+          results.methodology = methodologyFound; // This will be "" if "NONE" was returned, which is fine
+          if (researchQuestionFound) successfulSteps++;
+        } else {
+          // --- 2. FALLBACK TO ABSTRACT (only if intro text is missing) ---
           console.log(
-            "[NovaMind] Research question extracted:",
-            results.researchQuestion
+            "[NovaMind] No Introduction text. Using Abstract for Methodology."
           );
-        } catch (introError) {
-          console.warn(
-            "[NovaMind] Failed to extract research question:",
-            introError.message
+          const methodologyPrompt = `Describe the research methodology from this abstract in 2-3 sentences.
+              Abstract:
+              ${results.abstract}`;
+          results.methodology = await this.writerSession.write(
+            methodologyPrompt
           );
         }
+        successfulSteps++; // Count methodology step
+        // --- END OF LOGIC FIX ---
       }
 
-      // Step 4 (was 3): Identify methodology using Writer API
-      sendProgress(60);
-      console.log("[NovaMind] Step 4: Analyzing methodology...");
-      if (this.writerSession) {
-        // --- UPDATED (IMPROVEMENT 2) ---
-        const methodologyPrompt = `You are a research assistant. Read the following abstract and describe the research methodology, techniques, or approaches used.
-- Answer in 2-3 sentences.
-- Do NOT add any introductory text.
-
-Abstract:
-${results.abstract}`;
-        // --- END UPDATE ---
-
-        results.methodology = await this.writerSession.write(methodologyPrompt);
-        successfulSteps++;
-        console.log("[NovaMind] Methodology analysed");
-      }
-
-      // Step 5 (was 4, ENHANCED): Identify research gaps using Conclusion
+      // ====================================================================
+      // CHUNKING LOGIC FOR CONCLUSION
+      // ====================================================================
+      // Step 5: Research gaps from conclusion
       sendProgress(75);
-      console.log("[NovaMind] Step 5: Identifying research gaps...");
+      console.log("[NovaMind] Step 5: Research gaps");
       if (this.writerSession) {
-        // Use conclusion text if available (much better), otherwise fallback to summary
-        const gapSourceText = paperData.conclusionText || results.summary;
+        // --- LOGIC FIX: Set source based on conclusionText existence ---
+        let gapSourceText;
+        let sourceLabel;
 
-        // --- UPDATED (IMPROVEMENT 1) ---
-        const gapSource = smartTruncate(gapSourceText, 3500);
-        // --- END UPDATE ---
+        if (paperData.conclusionText) {
+          // --- 1. TRY CONCLUSION ---
+          gapSourceText = paperData.conclusionText;
+          sourceLabel = "Conclusion";
+        } else {
+          // --- 2. FALLBACK TO ABSTRACT ---
+          gapSourceText = results.abstract;
+          sourceLabel = "Abstract (fallback)";
+        }
+        // --- END OF LOGIC FIX ---
 
         console.log(
-          "[NovaMind] Using gap source:",
-          paperData.conclusionText ? "Conclusion" : "Summary"
+          `[NovaMind] Analysing ${sourceLabel} for gaps in chunks...`
         );
 
-        // --- UPDATED (IMPROVEMENT 2) ---
-        const gapsPrompt = `You are a research assistant. Read the following text (from a paper's conclusion or summary) and identify 2-3 research gaps, limitations, or areas suggested for future investigation.
-- List only the gaps or limitations.
-- Do NOT add any introductory text.
+        const CHUNK_SIZE = TOKEN_LIMITS.WRITER_INPUT;
+        let gapsFound = [];
 
-Text:
-${gapSource}`;
-        // --- END UPDATE ---
+        for (let i = 0; i < gapSourceText.length; i += CHUNK_SIZE) {
+          const chunk = gapSourceText.substring(i, i + CHUNK_SIZE);
+          console.log(
+            `[NovaMind] Processing ${sourceLabel} Chunk ${
+              Math.floor(i / CHUNK_SIZE) + 1
+            }/${Math.ceil(gapSourceText.length / CHUNK_SIZE)}`
+          );
 
-        const gapsText = await this.writerSession.write(gapsPrompt);
-        results.researchGaps = this.parseFindings(gapsText);
-        successfulSteps++;
+          const gapsPrompt = `Identify 2-3 research gaps or limitations from this text. List them directly, one per line. If none are found, respond with only the word "NONE".
+          Text:
+          ${chunk}`;
+
+          const gapsText = await this.writerSession.write(gapsPrompt);
+
+          if (gapsText.trim().toUpperCase() !== "NONE") {
+            const parsedGaps = gapsText
+              .split("\n")
+              .filter((g) => g.trim().length > 10)
+              .map((g) => g.replace(/^[-•*\d.]+\s*/, "").trim());
+            gapsFound.push(...parsedGaps);
+            console.log(
+              `[NovaMind] ✅ Found ${parsedGaps.length} gaps in chunk`
+            );
+          }
+        }
+
+        results.researchGaps = [...new Set(gapsFound)].slice(0, 3); // Get unique gaps
+        if (results.researchGaps.length > 0) successfulSteps++;
         console.log(
-          "[NovaMind] Research gaps identified:",
-          results.researchGaps.length
+          "[NovaMind] Found",
+          results.researchGaps.length,
+          "total unique gaps"
         );
       }
 
-      // Step 6 (was 5, ENHANCED): Generate trajectory suggestions (OPTIONAL)
+      // Step 6: Research trajectories (Now uses better, un-truncated data)
       if (this.languageModelSession) {
         sendProgress(85);
-        console.log(
-          "[NovaMind] Step 6: Generating research trajectory suggestions..."
-        );
+        console.log("[NovaMind] Step 6: Research trajectories");
+
         try {
-          // This prompt is already quite good, as it leverages the new, more accurate gaps
-          const trajectoryPrompt = `Based on this research paper and its identified gaps, suggest 3-4 specific, actionable research directions that could build upon this work.
+          // --- LOGIC FIX: Set source based on conclusionText existence ---
+          let trajectorySourceText;
+          let sourceLabel;
 
-Research Question/Problem:
-${results.researchQuestion || "N/A"}
+          if (paperData.conclusionText) {
+            // --- 1. TRY CONCLUSION ---
+            trajectorySourceText = paperData.conclusionText;
+            sourceLabel = "Conclusion";
+          } else {
+            // --- 2. FALLBACK TO ABSTRACT ---
+            trajectorySourceText = results.abstract;
+            sourceLabel = "Abstract (fallback)";
+          }
+          console.log(`[NovaMind] Using ${sourceLabel} for trajectories...`);
+          // --- END OF LOGIC FIX ---
 
-Paper Summary:
-${results.summary}
+          const contexts = combineContexts(
+            [
+              {
+                label: sourceLabel,
+                text: trajectorySourceText,
+              },
+            ],
+            TOKEN_LIMITS.COMBINED_CONTEXT_MAX
+          );
 
-Identified Gaps/Limitations:
-${results.researchGaps.map((g, i) => `${i + 1}. ${g}`).join("\n")}
+          let contextText = contexts
+            .map((c) => `${c.label}:\n${c.text}`)
+            .join("\n\n");
 
-IMPORTANT: Format your response as a numbered list starting directly with "1." - do NOT include any introductory text like "Here are..." or explanations. Each suggestion should be 2-4 sentences describing concrete, feasible next steps that researchers could pursue.
+          const trajectoryPrompt = `Based on this research, suggest 3-5 specific future research directions.
 
-Example format:
-1. [Research direction title]. [2-4 sentences of actionable detail]
-2. [Research direction title]. [2-4 sentences of actionable detail]`;
+${contextText}
 
-          const trajectoriesText = await this.languageModelSession.prompt(
+List 3-5 concrete, feasible research suggestions:`;
+
+          console.log(
+            `[NovaMind] Trajectory prompt: ${trajectoryPrompt.length} chars`
+          );
+
+          // Check tokens if possible
+          if (
+            typeof this.languageModelSession.countPromptTokens === "function"
+          ) {
+            const tokenCount =
+              await this.languageModelSession.countPromptTokens(
+                trajectoryPrompt
+              );
+            console.log(`[NovaMind] Trajectory tokens: ${tokenCount}`);
+          }
+
+          const trajectoryText = await this.languageModelSession.prompt(
             trajectoryPrompt
           );
-          results.trajectorySuggestions =
-            this.parseTrajectories(trajectoriesText);
+          checkSessionTokens(this.languageModelSession, "After trajectories");
+
+          // =================== Bug Fix Maintained ===================
+          results.trajectorySuggestions = trajectoryText
+            .split("\n")
+            .filter((t) => t.trim().length > 15)
+            // 1. MODIFIED: Added \s* to regex to catch bullets with leading whitespace
+            .map((t) => t.replace(/^\s*[-•*\d.]+\s*/, "").trim())
+            .filter((t) => !t.toLowerCase().startsWith("here"))
+            // 2. ADDED: New filter to remove the unwanted "Based on..." preamble
+            .filter((t) => !t.toLowerCase().startsWith("based on"))
+            .slice(0, 5);
+          // =================== End of Bug Fix ===================
+
+          // This step is counted in totalSteps, so increment success
           successfulSteps++;
+
           console.log(
-            "[NovaMind] Trajectory suggestions generated:",
-            results.trajectorySuggestions.length
+            "[NovaMind] Generated",
+            results.trajectorySuggestions.length,
+            "trajectories"
           );
-        } catch (languageModelError) {
-          console.warn(
-            "[NovaMind] Failed to generate trajectories:",
-            languageModelError.message
-          );
-          // Continue without trajectories
+        } catch (error) {
+          console.error("[NovaMind] Trajectories failed:", error);
+          results.trajectorySuggestions = [];
         }
-      } else {
-        console.log(
-          "[NovaMind] ⚠️ Skipping trajectory suggestions (LanguageModel not available)"
-        );
       }
 
-      // Calculate confidence score
       results.confidence = Math.round((successfulSteps / totalSteps) * 100);
       console.log(
-        "[NovaMind] Analysis complete with confidence:",
+        "[NovaMind] Analysis complete. Confidence:",
         results.confidence + "%"
       );
 
-      return { success: true, data: results };
+      return {
+        success: true,
+        data: results,
+      };
     } catch (error) {
-      console.error("[NovaMind] Error during paper analysis:", error);
-      return { success: false, error: error.message };
+      console.error("[NovaMind] Analysis error:", error);
+      return {
+        success: false,
+        error: error.message,
+        data: results,
+      };
     }
   }
 
-  parseFindings(text) {
-    const lines = text
-      .split(/\n+/)
-      .map((line) =>
-        line
-          .replace(/^\d+\.\s*/, "")
-          .replace(/^[•\-*]\s*/, "")
-          .trim()
-      )
-      .filter((line) => line.length > 20);
-
-    console.log("[NovaMind] Parsed findings:", lines.length);
-    return lines.slice(0, 4);
-  }
-
-  // Parse trajectory suggestions that may span multiple lines
-  parseTrajectories(text) {
-    console.log("[NovaMind] Parsing trajectory text:", text.substring(0, 200));
-
-    // Split on numbered list markers (1., 2., 3., etc.)
-    const items = text.split(/\n(?=\d+\.\s)/);
-
-    const trajectories = items
-      .map((item) => {
-        // Remove the number prefix and clean up
-        return item
-          .replace(/^\d+\.\s*/, "") // Remove leading "1. " or "2. " etc
-          .replace(/\n{3,}/g, "\n\n") // Keep paragraph breaks (convert 3+ newlines to 2)
-          .replace(/\n\s*\*/g, "\n*") // Normalize bullet formatting
-          .trim();
-      })
-      .filter((item) => {
-        // Must be substantial
-        if (item.length < 30) return false;
-
-        // Filter out preamble/introductory text
-        const lowerItem = item.toLowerCase();
-        const preamblePhrases = [
-          "here are",
-          "here is",
-          "below are",
-          "below is",
-          "following are",
-          "the following",
-          "i suggest",
-          "i recommend",
-          "these are",
-          "this is",
-        ];
-
-        // Check if item starts with any preamble phrase
-        const isPreamble = preamblePhrases.some(
-          (phrase) =>
-            lowerItem.startsWith(phrase) ||
-            lowerItem.includes(phrase + " specific") ||
-            lowerItem.includes(phrase + " actionable")
-        );
-
-        return !isPreamble;
-      });
-
-    console.log("[NovaMind] Parsed trajectories:", trajectories.length);
-    return trajectories.slice(0, 5);
-  }
-
-  async cleanup() {
-    console.log("[NovaMind] Cleaning up analyser sessions");
+  cleanup() {
+    console.log("[NovaMind] Cleaning up sessions");
+    // Added checks for session existence before destroying
     if (this.summarizerSession) {
       this.summarizerSession.destroy();
     }
@@ -483,6 +627,10 @@ Example format:
     }
   }
 }
+
+// ============================================================================
+// CONNECTION DETECTOR CLASS (From File 1)
+// ============================================================================
 
 // ENHANCED ConnectionDetector - Uses Original Abstracts
 class ConnectionDetector {
@@ -620,7 +768,7 @@ STRICT Guidelines - Mark as "none" unless:
 - One paper explicitly builds on the other's specific method or findings
 - Papers have contradictory results on the SAME specific experiment
 - One paper directly addresses a gap the other paper mentioned, or their gaps/findings complement each other
-- Note: Different methods studying the same specific phenomenon CAN be connected (citation/complementary), but not as "methodological"
+- Note: Different methods studying the same specific phenomenon CAN be connected (citation/complementary), not as "methodological"
 - Sharing a general field (AI, biology, etc.) is NOT a connection
 - Using common techniques (transformers, CNNs, etc.) is NOT enough for a methodological connection
 - Having similar themes is NOT a connection
@@ -747,6 +895,10 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
   }
 }
 
+// ============================================================================
+// SERVICE WORKER LOGIC (From File 1)
+// ============================================================================
+
 // Global analyser instance
 const analyser = new PaperAnalyser();
 
@@ -761,7 +913,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.error("[NovaMind] Message handler error:", err);
         sendResponse({ success: false, error: err.message });
       });
-    return true;
+    return true; // Indicates asynchronous response
   } else if (request.action === "checkAPIAvailability") {
     checkAPIs()
       .then(sendResponse)
@@ -769,8 +921,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.error("[NovaMind] API check error:", err);
         sendResponse({ available: false, error: err.message });
       });
-    return true;
+    return true; // Indicates asynchronous response
   }
+  // Allow other message types to be handled synchronously
+  return false;
 });
 
 async function handleAnalysis(paperData) {
@@ -787,7 +941,7 @@ async function handleAnalysis(paperData) {
       };
     }
 
-    // Step 1-6: Analyse the paper (this now includes the new Deep Dive steps)
+    // Step 1-6: Analyse the paper (using the new, smarter PaperAnalyser)
     const result = await analyser.analysePaper(paperData);
 
     if (!result.success) {
@@ -1027,6 +1181,7 @@ chrome.commands.onCommand.addListener((command) => {
 
 console.log("[NovaMind] Background service worker initialized");
 
+// Initial check on startup
 (async () => {
   try {
     console.log("[NovaMind] Checking initial API availability...");
