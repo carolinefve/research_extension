@@ -396,7 +396,7 @@ async function extractTextFromPDF(pdfUrl) {
 
     // Also try to get the last few pages for conclusion
     if (pdf.numPages > maxPages) {
-      const lastPages = Math.max(pdf.numPages - 3, maxPages + 1);
+      const lastPages = Math.max(pdf.numPages - 5, maxPages + 1);
       for (let pageNum = lastPages; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
