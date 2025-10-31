@@ -169,11 +169,18 @@ class PaperAnalyser {
         throw new Error("Required Chrome AI APIs not available");
       }
 
+      // Load settings before creating sessions ---
+      const { settings } = await chrome.storage.local.get("settings");
+      const userSummaryLength = settings?.summaryLength || "medium";
+      console.log(
+        `[NovaMind] Initializing summarizer with length: ${userSummaryLength}`
+      );
+
       // Create Summarizer session
       this.summarizerSession = await Summarizer.create({
         type: "teaser",
         format: "plain-text",
-        length: "medium",
+        length: userSummaryLength,
         outputLanguage: "en",
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
@@ -189,7 +196,7 @@ class PaperAnalyser {
       this.writerSession = await Writer.create({
         tone: "formal",
         format: "plain-text",
-        length: "medium",
+        length: "userSummaryLength",
         outputLanguage: "en",
         monitor(m) {
           m.addEventListener("downloadprogress", (e) => {
