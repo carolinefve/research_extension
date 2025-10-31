@@ -563,8 +563,7 @@ class ConnectionDetector {
     return str.trim();
   }
 
-  // Compares two papers using the Language Model to find connections.
-
+  // Simple `comparePapers` function with a more robust prompt
   async comparePapers(paper1, paper2) {
     const summary1 = paper1.summary;
     const summary2 = paper2.summary;
@@ -573,9 +572,6 @@ class ConnectionDetector {
       return null;
     }
 
-    // 2. Create the new, ENHANCED simple prompt.
-    // This prompt is more explicit about what makes a "good" connection,
-    // while still being simple and avoiding JSON.
     const prompt = `You are a research analyst. Your task is to compare two paper summaries and identify if they share a specific, meaningful connection.
 
 PAPER 1 SUMMARY:
@@ -589,12 +585,14 @@ RULES FOR YOUR RESPONSE:
 
 1.  **BE STRICT:** Do NOT identify a connection if they just share a broad field (e.g., "both about AI" or "both are about healthcare"). This is not a meaningful connection.
 
-2.  **FIND THE LINK:** Look for a shared *specific* problem (e.g., "data fragmentation"), a niche concept (e.g., "curiosity-driven exploration"), a shared theme, or a problem-solution relationship.
+2.  **FIND THE LINK:** Look for a shared *specific* problem, a niche concept, a shared theme, or a problem-solution relationship.
 
 3.  **YOUR RESPONSE:**
     * If a specific, meaningful link is found: Respond with a single, concise sentence that explains the shared theme. Start this sentence with "Connection:"
         * *Good Example: "Connection: Both papers discuss the problem of data fragmentation in scientific research, but from different perspectives."*
     * If no specific, meaningful link is found (or the link is too broad): Respond with ONLY the text "No significant connection."
+
+4.  **LENGTH LIMIT:** Your response, if a connection is found, must not exceed 500 characters.
 
 ---
 Begin Analysis:`;
@@ -631,10 +629,11 @@ Begin Analysis:`;
       );
 
       // 5. Return the new, simplified connection object.
+
       return {
         paperId: paper2.timestamp,
         paperTitle: paper2.title,
-        description: description.substring(0, 250), // Truncate description
+        description: description,
         detectedAt: new Date().toISOString(),
       };
     } catch (error) {

@@ -132,14 +132,6 @@ async function analysePaper() {
       currentWindow: true,
     });
 
-    // Check if it's a PDF URL
-    if (tab.url.toLowerCase().includes(".pdf") || tab.url.includes("/pdf/")) {
-      showNotification(
-        "Extracting text from PDF... This may take a moment.",
-        "info"
-      );
-    }
-
     const contentResponse = await chrome.tabs.sendMessage(tab.id, {
       action: "extractContent",
     });
