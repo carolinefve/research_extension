@@ -14,13 +14,7 @@
     "scripting"
   ],
 
-  "host_permissions": [
-    "*://arxiv.org/*",
-    "*://*.ncbi.nlm.nih.gov/*",
-    "*://ieeexplore.ieee.org/*",
-    "*://scholar.google.com/*",
-    "*://link.springer.com/*"
-  ],
+  "host_permissions": ["*://arxiv.org/*", "*://ieeexplore.ieee.org/*"],
 
   "background": {
     "service_worker": "background.js"
@@ -28,13 +22,7 @@
 
   "content_scripts": [
     {
-      "matches": [
-        "*://arxiv.org/*",
-        "*://*.ncbi.nlm.nih.gov/*",
-        "*://ieeexplore.ieee.org/*",
-        "*://scholar.google.com/*",
-        "*://link.springer.com/*"
-      ],
+      "matches": ["*://arxiv.org/*", "*://ieeexplore.ieee.org/*"],
       "js": ["extensions/pdfjs/pdf.min.js", "content.js"],
       "run_at": "document_idle"
     }

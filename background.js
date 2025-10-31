@@ -564,119 +564,81 @@ class ConnectionDetector {
   }
 
   // Compares two papers using the Language Model to find connections.
+
   async comparePapers(paper1, paper2) {
-    // Use original abstracts for better comparison quality.
-    const paper1Content = paper1.abstract || paper1.summary;
-    const paper2Content = paper2.abstract || paper2.summary;
-    const paper1Text = paper1Content.substring(0, 800);
-    const paper2Text = paper2Content.substring(0, 800);
+    const summary1 = paper1.summary;
+    const summary2 = paper2.summary;
 
-    // This prompt is highly structured to force a JSON response and enforce strict rules for what constitutes a "connection".
-    const prompt = `Compare these two research papers and identify their relationship. Be STRICT - only identify strong, meaningful connections. Being in the same broad field (e.g., both about "machine learning" or "NLP") is NOT enough for a connection.
+    if (!summary1 || !summary2) {
+      return null;
+    }
 
-PAPER 1 (NEWER):
-Title: ${paper1.title}
-Abstract: ${paper1Text}
-Key Findings: ${paper1.keyFindings.join("; ")}
-Research Gaps: ${paper1.researchGaps.join("; ")}
+    // 2. Create the new, ENHANCED simple prompt.
+    // This prompt is more explicit about what makes a "good" connection,
+    // while still being simple and avoiding JSON.
+    const prompt = `You are a research analyst. Your task is to compare two paper summaries and identify if they share a specific, meaningful connection.
 
-PAPER 2 (OLDER):
-Title: ${paper2.title}
-Abstract: ${paper2Text}
-Key Findings: ${paper2.keyFindings.join("; ")}
-Research Gaps: ${paper2.researchGaps.join("; ")}
+PAPER 1 SUMMARY:
+${summary1}
 
-Respond with ONLY a valid JSON object (no markdown, no extra text):
-{
-  "hasConnection": true,
-  "connectionType": "citation",
-  "strength": 9,
-  "description": "Brief explanation without quotes"
-}
+PAPER 2 SUMMARY:
+${summary2}
 
-Rules:
-- hasConnection: true or false (BE STRICT - most papers should be false)
-- connectionType: "methodological" | "contradictory" | "complementary" | "citation" | "none"
-- strength: number from 1 to 10 (minimum 7 for real connections)
-- description: simple string explaining the SPECIFIC connection
+---
+RULES FOR YOUR RESPONSE:
 
-Connection Types (with STRICT criteria):
-- citation: Paper 1 explicitly mentions or directly builds upon the SPECIFIC approach/model/findings from Paper 2, OR both papers study the EXACT SAME narrow phenomenon/dataset/model (e.g., both specifically about "GPT-3", not just "transformers"). Requires very specific overlap, not just same field.
-- complementary: Paper 1 DIRECTLY addresses a gap or limitation that Paper 2 explicitly mentioned, OR Paper 2's findings/focus match gaps that Paper 1 identified, OR Paper 2's findings are a prerequisite for Paper 1's work. Check if research gaps from one paper align with the focus of the other.
-- methodological: Papers use the SAME SPECIFIC novel technique/algorithm (not just "uses neural networks" but "both use the exact same LoRA fine-tuning approach"). Different methods studying the same topic do NOT count as methodological connections.
-- contradictory: Papers have DIRECTLY OPPOSING findings or conclusions about the SAME SPECIFIC question/experiment
-- none: No strong, specific connection (this should be the most common result)
+1.  **BE STRICT:** Do NOT identify a connection if they just share a broad field (e.g., "both about AI" or "both are about healthcare"). This is not a meaningful connection.
 
-STRICT Guidelines - Mark as "none" unless:
-- Papers share the EXACT SAME specific model, dataset, or narrow phenomenon (e.g., both about "BERT fine-tuning on SQUAD", not just "NLP")
-- One paper explicitly builds on the other's specific method or findings
-- Papers have contradictory results on the SAME specific experiment
-- One paper directly addresses a gap the other paper mentioned, or their gaps/findings complement each other
-- Note: Different methods studying the same specific phenomenon CAN be connected (citation/complementary), not as "methodological"
-- Sharing a general field (AI, biology, etc.) is NOT a connection
-- Using common techniques (transformers, CNNs, etc.) is NOT enough for a methodological connection
-- Having similar themes is NOT a connection
+2.  **FIND THE LINK:** Look for a shared *specific* problem (e.g., "data fragmentation"), a niche concept (e.g., "curiosity-driven exploration"), a shared theme, or a problem-solution relationship.
 
-If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for any connection.`;
+3.  **YOUR RESPONSE:**
+    * If a specific, meaningful link is found: Respond with a single, concise sentence that explains the shared theme. Start this sentence with "Connection:"
+        * *Good Example: "Connection: Both papers discuss the problem of data fragmentation in scientific research, but from different perspectives."*
+    * If no specific, meaningful link is found (or the link is too broad): Respond with ONLY the text "No significant connection."
+
+---
+Begin Analysis:`;
 
     try {
-      console.log("[NovaMind] Sending enhanced comparison request...");
+      console.log("[NovaMind] Sending enhanced simple summary request...");
       const response = await this.languageModelSession.prompt(prompt);
-      const cleanedResponse = this.cleanJsonString(response);
+      const cleanedResponse = response.trim();
 
-      let analysis;
-      try {
-        analysis = JSON.parse(cleanedResponse);
-      } catch (parseError) {
-        // Fallback to manual regex extraction if JSON.parse fails.
-        console.error(
-          "[NovaMind] ❌ JSON parse error, attempting manual extraction..."
-        );
-        analysis = this.manualExtractJson(cleanedResponse);
-        if (!analysis) {
-          console.log("[NovaMind] ❌ Manual extraction failed");
-          return null;
-        }
-      }
-
-      // Validate the parsed object structure.
+      // 3. The new "filter" logic.
+      // It's still simple, just checking for our stop-phrase.
       if (
-        !analysis.hasOwnProperty("hasConnection") ||
-        !analysis.hasOwnProperty("connectionType") ||
-        !analysis.hasOwnProperty("strength") ||
-        !analysis.hasOwnProperty("description")
+        cleanedResponse.toLowerCase().startsWith("no significant connection") ||
+        cleanedResponse.length < 10
       ) {
-        console.warn("[NovaMind] Invalid response structure:", analysis);
+        console.log(
+          "[NovaMind] ❌ No significant summary connection detected."
+        );
         return null;
       }
 
-      if (!analysis.hasConnection || analysis.connectionType === "none") {
-        return null;
+      // 4. If it's not a "no" response, it's the connection.
+      // We clean up the "Connection:" prefix if the AI used it.
+      let description = cleanedResponse;
+      if (description.toLowerCase().startsWith("connection:")) {
+        description = description.substring(11).trim(); // 11 is length of "Connection:" + space
       }
 
-      const strength = Math.max(
-        1,
-        Math.min(10, parseInt(analysis.strength) || 5)
+      console.log(
+        `[NovaMind] ✅ Simple theme connection found: ${description.substring(
+          0,
+          70
+        )}...`
       );
 
-      // STRICT FILTER: Only accept connections with strength >= 7.
-      if (strength < 7) {
-        console.log(
-          `[NovaMind] ❌ Connection strength too low (${strength}), filtering out`
-        );
-        return null;
-      }
-
+      // 5. Return the new, simplified connection object.
       return {
         paperId: paper2.timestamp,
         paperTitle: paper2.title,
-        type: analysis.connectionType,
-        strength: strength,
-        description: analysis.description.substring(0, 200),
+        description: description.substring(0, 250), // Truncate description
         detectedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error("[NovaMind] Error in comparePapers:", error);
+      console.error("[NovaMind] Error in simple comparePapers:", error);
       return null;
     }
   }

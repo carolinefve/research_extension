@@ -225,35 +225,24 @@ function displayConnections(connections) {
     return;
   }
 
-  // Sort connections by strength (highest first)
+  // NEW: Sort connections by when they were detected (newest first)
   const sortedConnections = [...connections].sort(
-    (a, b) => b.strength - a.strength
+    (a, b) => new Date(b.detectedAt) - new Date(a.detectedAt)
   );
 
   sortedConnections.forEach((connection, index) => {
     const item = document.createElement("div");
     item.className = "connection-item";
 
-    // Get connection type color class
-    const typeClass = getConnectionTypeClass(connection.type);
-
     item.innerHTML = `
       <div class="connection-content">
         <div class="connection-header-row">
           <span class="connection-number">${index + 1}</span>
-          <div class="connection-meta-top">
-            <span class="connection-type-badge ${typeClass}">${
-      connection.type
-    }</span>
-            <span class="connection-strength-badge">Strength: ${
-              connection.strength
-            }/10</span>
-          </div>
-        </div>
-        <div class="connection-body">
           <h4 class="connection-paper-title">${escapeHtml(
             connection.paperTitle
           )}</h4>
+        </div>
+        <div class="connection-body">
           <div class="connection-description">${formatMarkdownText(
             connection.description
           )}</div>
@@ -264,21 +253,9 @@ function displayConnections(connections) {
   });
 }
 
-function getConnectionTypeClass(type) {
-  const typeMap = {
-    methodological: "type-methodological",
-    contradictory: "type-contradictory",
-    complementary: "type-complementary",
-    citation: "type-citation",
-  };
-  return typeMap[type.toLowerCase()] || "type-default";
-}
-
 function getSiteName(url) {
   if (url.includes("arxiv.org")) return "arXiv";
-  if (url.includes("pubmed")) return "PubMed";
   if (url.includes("ieee")) return "IEEE Xplore";
-  if (url.includes("scholar.google")) return "Google Scholar";
   return "Unknown";
 }
 
@@ -482,7 +459,6 @@ function generatePDF(analysis) {
     addSpacing(8);
   }
 
-  D;
   addSpacing(10);
   addSeparator();
   addSpacing(5);
@@ -517,9 +493,7 @@ function generatePDF(analysis) {
     analysis.connections.forEach((connection, index) => {
       const connectionText = `${index + 1}. ${
         connection.paperTitle
-      }\n   Type: ${connection.type} | Strength: ${
-        connection.strength
-      }/10\n   ${stripMarkdown(connection.description)}`;
+      }\n   ${stripMarkdown(connection.description)}`;
       addText(connectionText, 10);
       addSpacing(10);
     });

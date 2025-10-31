@@ -397,36 +397,6 @@ body {
   transform: translateY(-1px);
 }
 
-/* Connection Types */
-.connection-type-badge {
-  display: inline-block;
-  padding: 0.25rem 0.625rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-right: 0.5rem;
-}
-
-.connection-type-badge.methodological {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.connection-type-badge.contradictory {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.connection-type-badge.complementary {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.connection-type-badge.citation {
-  background: #fef3c7;
-  color: #92400e;
-}
-
 /* Empty State */
 .empty-state {
   grid-column: 1 / -1;
@@ -808,28 +778,6 @@ body {
   border-radius: 0.5rem;
   padding: 1rem;
   border-left: 4px solid var(--btn);
-}
-
-.connection-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.connection-item-title {
-  font-weight: 600;
-  color: var(--text);
-  font-size: 0.938rem;
-}
-
-.connection-strength {
-  background: var(--btn);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 600;
 }
 
 .connection-description {

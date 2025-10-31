@@ -443,56 +443,6 @@ body {
   flex-shrink: 0;
 }
 
-.connection-meta-top {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.connection-type-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.connection-type-badge.type-methodological {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.connection-type-badge.type-contradictory {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.connection-type-badge.type-complementary {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.connection-type-badge.type-citation {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.connection-type-badge.type-default {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.connection-strength-badge {
-  background: var(--btn);
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 .connection-body {
   display: flex;
   flex-direction: column;
@@ -621,10 +571,6 @@ body {
 
   .connection-header-row {
     flex-direction: column;
-  }
-
-  .connection-meta-top {
-    width: 100%;
   }
 }
 

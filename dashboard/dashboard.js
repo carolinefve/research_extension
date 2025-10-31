@@ -171,9 +171,8 @@ function createPaperCard(paper) {
 // Get site name from URL
 function getSiteName(url) {
   if (url.includes("arxiv.org")) return "arXiv";
-  if (url.includes("pubmed")) return "PubMed";
+
   if (url.includes("ieee")) return "IEEE";
-  if (url.includes("scholar.google")) return "Scholar";
   return "Unknown";
 }
 
@@ -264,9 +263,9 @@ function openConnectionModal(paper) {
     return;
   }
 
-  // Sort connections by strength
+  // NEW: Sort connections by when they were detected (newest first)
   const sortedConnections = [...paper.connections].sort(
-    (a, b) => b.strength - a.strength
+    (a, b) => new Date(b.detectedAt) - new Date(a.detectedAt)
   );
 
   modalBody.innerHTML = `
@@ -275,12 +274,6 @@ function openConnectionModal(paper) {
         .map(
           (conn) => `
         <div class="connection-item">
-          <div class="connection-item-header">
-            <span class="connection-type-badge ${conn.type}">${conn.type}</span>
-            <span class="connection-strength">Strength: ${
-              conn.strength
-            }/10</span>
-          </div>
           <h4 class="connection-item-title">${escapeHtml(conn.paperTitle)}</h4>
           <p class="connection-description">${markdownToHtml(
             conn.description

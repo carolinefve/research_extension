@@ -23,30 +23,12 @@ function detectSite() {
         hostname.includes("arxiv.org") &&
         (url.includes("/abs/") || url.includes("/pdf/")),
     },
-    "ncbi.nlm.nih.gov": {
-      key: "PubMed",
-      domain: "ncbi.nlm.nih.gov",
-      isSupported:
-        hostname.includes("ncbi.nlm.nih.gov") &&
-        (url.includes("/pmc/") || url.includes("/pubmed/")),
-    },
+
     "ieeexplore.ieee.org": {
       key: "IEEE",
       domain: "ieeexplore.ieee.org",
       isSupported:
         hostname.includes("ieeexplore.ieee.org") && url.includes("/document/"),
-    },
-    "scholar.google.com": {
-      key: "Scholar",
-      domain: "scholar.google.com",
-      isSupported: hostname.includes("scholar.google.com"),
-    },
-    "link.springer.com": {
-      key: "Springer",
-      domain: "link.springer.com",
-      isSupported:
-        hostname.includes("link.springer.com") &&
-        (url.includes("/article/") || url.includes("/chapter/")),
     },
   };
 
@@ -96,20 +78,7 @@ function looksLikeResearchPaper() {
     console.log("[NovaMind] Detected PDF document");
     // For PDFs, we rely on URL patterns to determine if it is a research paper.
     const url = window.location.href.toLowerCase();
-    const researchPdfPatterns = [
-      /arxiv\.org/,
-      /\.edu\/.*\.pdf/, // .edu domains hosting PDFs.
-      /researchgate\.net/,
-      /academia\.edu/,
-      /doi\.org/,
-      /scholar\.google/,
-      /pubmed/,
-      /ncbi\.nlm\.nih\.gov/,
-      /ieee/,
-      /acm\.org/,
-      /springer/,
-      /sciencedirect/,
-    ];
+    const researchPdfPatterns = [/arxiv\.org/];
 
     const isLikelyResearchPdf = researchPdfPatterns.some((pattern) =>
       pattern.test(url)
