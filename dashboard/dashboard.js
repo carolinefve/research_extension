@@ -32,8 +32,17 @@ async function loadHighlights() {
     const { highlights = [] } = await chrome.storage.local.get("highlights");
     allHighlights = highlights;
     console.log("[Dashboard] Loaded", allHighlights.length, "highlights");
+    updateHighlightsBadge();
   } catch (error) {
     console.error("[Dashboard] Failed to load highlights:", error);
+  }
+}
+
+//  Update highlights badge
+function updateHighlightsBadge() {
+  const badge = document.getElementById("highlightsBadge");
+  if (badge) {
+    badge.textContent = allHighlights.length;
   }
 }
 
@@ -173,6 +182,7 @@ function getSiteName(url) {
   if (url.includes("arxiv.org")) return "arXiv";
 
   if (url.includes("ieee")) return "IEEE";
+
   return "Unknown";
 }
 
@@ -263,7 +273,7 @@ function openConnectionModal(paper) {
     return;
   }
 
-  // NEW: Sort connections by when they were detected (newest first)
+  // Sort connections by when they were detected (newest first)
   const sortedConnections = [...paper.connections].sort(
     (a, b) => new Date(b.detectedAt) - new Date(a.detectedAt)
   );
@@ -274,6 +284,7 @@ function openConnectionModal(paper) {
         .map(
           (conn) => `
         <div class="connection-item">
+        
           <h4 class="connection-item-title">${escapeHtml(conn.paperTitle)}</h4>
           <p class="connection-description">${markdownToHtml(
             conn.description
@@ -383,9 +394,18 @@ function openHighlightsModal(paperUrl) {
 
   modalTitle.textContent = `Highlights: ${sortedHighlights[0].paperTitle}`;
 
-  modalBody.innerHTML = sortedHighlights
-    .map(
-      (highlight) => `
+  modalBody.innerHTML = `
+    <div class="paper-url-section">
+      <strong>Paper URL:</strong>
+      <a href="${escapeHtml(
+        paperUrl
+      )}" target="_blank" rel="noopener noreferrer" class="paper-url-link">
+        ${escapeHtml(paperUrl)}
+      </a>
+    </div>
+    ${sortedHighlights
+      .map(
+        (highlight) => `
     <div class="highlight-item" data-highlight-id="${highlight.id}">
       <div class="highlight-text">${escapeHtml(highlight.text)}</div>
       <div class="highlight-meta">
@@ -398,8 +418,9 @@ function openHighlightsModal(paperUrl) {
       </div>
     </div>
   `
-    )
-    .join("");
+      )
+      .join("")}
+  `;
 
   // Add delete handlers
   modalBody.querySelectorAll(".delete-highlight-btn").forEach((btn) => {
