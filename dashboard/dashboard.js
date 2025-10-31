@@ -582,12 +582,12 @@ function setupEventListeners() {
     toggleHighlightsPanel();
   });
 
-  // NEW: Close panel button
+  // Close panel button
   document.getElementById("closePanelBtn").addEventListener("click", () => {
     toggleHighlightsPanel();
   });
 
-  // NEW: Panel backdrop click
+  // Panel backdrop click
   document.getElementById("panelBackdrop").addEventListener("click", () => {
     toggleHighlightsPanel();
   });
@@ -607,7 +607,7 @@ function setupEventListeners() {
       }
     });
   });
-
+}
 
 // Apply filters and search
 function applyFilters() {
