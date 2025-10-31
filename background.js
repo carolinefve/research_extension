@@ -1,63 +1,57 @@
-// ============================================================================
-// TOKEN LIMITS & TEXT HELPERS
-// ============================================================================
+// Defines approximate token and character limits for API calls.
 const TOKEN_LIMITS = {
-  // Chrome AI actual limits (in tokens)
   MAX_CONTEXT_TOKENS: 4096, // Total session context
   MAX_PROMPT_TOKENS: 1024, // Per-prompt limit
 
-  SUMMARIZER_INPUT: 3000, // ~750 tokens input (leaves 274 for prompt+response)
-  WRITER_INPUT: 3000, // ~750 tokens input (safe for Writer API)
-  LANGUAGE_MODEL_INPUT: 3000, // ~750 tokens input (safe for LanguageModel)
+  SUMMARIZER_INPUT: 3000,
+  WRITER_INPUT: 3000,
+  LANGUAGE_MODEL_INPUT: 3000,
 
-  ABSTRACT_MAX: 2000, // ~500 tokens
-  INTRODUCTION_MAX: 3000, // ~750 tokens
-  CONCLUSION_MAX: 3000, // ~750 tokens
-  COMBINED_CONTEXT_MAX: 4000, // ~1000 tokens (for multi-section)
+  ABSTRACT_MAX: 2000,
+  INTRODUCTION_MAX: 3000,
+  CONCLUSION_MAX: 3000,
+  COMBINED_CONTEXT_MAX: 4000,
 
-  // Reserved tokens for prompt text
-  PROMPT_OVERHEAD: 200, // ~200 tokens for prompt formatting
-  RESPONSE_TOKENS: 200, // ~200 tokens reserved for response
+  // Reserved tokens for prompt formatting and response generation.
+  PROMPT_OVERHEAD: 200,
+  RESPONSE_TOKENS: 200,
 };
 
+// Calculates a safe character count based on estimated token limits.
 function calculateSafeInputSize(promptOverheadChars = 800) {
   const availableTokens =
     TOKEN_LIMITS.MAX_PROMPT_TOKENS -
     (TOKEN_LIMITS.PROMPT_OVERHEAD + TOKEN_LIMITS.RESPONSE_TOKENS);
-
+  // Estimate ~3.5 chars per token.
   return Math.floor(availableTokens * 3.5);
 }
 
+// Truncates text by combining the start and end, for very large inputs.
 function smartTruncate(text, maxLength) {
   if (!text || text.length <= maxLength) {
     return text || "";
   }
-
   const halfLength = Math.floor(maxLength / 2);
   const start = text.substring(0, halfLength);
   const end = text.substring(text.length - halfLength);
-
   return start + "\n\n...[Content Truncated for Token Limits]...\n\n" + end;
 }
 
-/**
- * IMPROVED: Intelligent truncation with sentence boundaries
- */
+// Truncates text at the nearest sentence boundary.
 function intelligentTruncate(text, maxLength) {
   if (!text || text.length <= maxLength) {
     return text || "";
   }
 
-  // Try to split on sentence boundaries
+  // Try to split on sentence boundaries.
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-
   let result = "";
   let currentLength = 0;
 
   for (const sentence of sentences) {
     if (currentLength + sentence.length > maxLength) {
       if (result === "") {
-        // No sentences fit, just truncate
+        // If no full sentences fit, just truncate the first one.
         return sentence.substring(0, maxLength) + "...";
       }
       break;
@@ -65,44 +59,33 @@ function intelligentTruncate(text, maxLength) {
     result += sentence;
     currentLength += sentence.length;
   }
-
   return result.trim();
 }
 
-/**
- * NEW: Prepare text with token counting (if available)
- * Uses actual Chrome AI token counting when possible
- */
 async function prepareTextForAPI(text, apiType = "WRITER", session = null) {
   if (!text) return "";
 
-  // Get the appropriate limit
   const charLimit =
     TOKEN_LIMITS[apiType + "_INPUT"] || TOKEN_LIMITS.WRITER_INPUT;
-
-  // Normalize whitespace
   const normalized = text.replace(/\s+/g, " ").trim();
 
-  // If within limit, check actual tokens if session available
+  // If within char limit, check actual tokens if a session is available.
   if (normalized.length <= charLimit) {
-    // Try to use real token counting if available
     if (session && typeof session.countPromptTokens === "function") {
       try {
         const tokenCount = await session.countPromptTokens(normalized);
         console.log(`[NovaMind] Actual token count: ${tokenCount} tokens`);
 
-        // If under token limit, return as-is
+        // If it's over the token limit, truncate based on tokens.
         if (
-          tokenCount <=
+          tokenCount >
           TOKEN_LIMITS.MAX_PROMPT_TOKENS - TOKEN_LIMITS.PROMPT_OVERHEAD
         ) {
-          return normalized;
+          console.log(`[NovaMind] Token limit exceeded, truncating...`);
+          const safeSize = calculateSafeInputSize();
+          return intelligentTruncate(normalized, safeSize);
         }
-
-        // Otherwise, we need to truncate more aggressively
-        console.log(`[NovaMind] Token limit exceeded, truncating...`);
-        const safeSize = calculateSafeInputSize();
-        return intelligentTruncate(normalized, safeSize);
+        return normalized;
       } catch (error) {
         console.warn(
           "[NovaMind] Token counting failed, using char-based limit:",
@@ -110,38 +93,30 @@ async function prepareTextForAPI(text, apiType = "WRITER", session = null) {
         );
       }
     }
-
     return normalized;
   }
 
-  // Text exceeds char limit, truncate intelligently
+  // Text exceeds char limit, truncate intelligently.
   console.log(
     `[NovaMind] Text too long (${normalized.length} chars), truncating to ${charLimit}`
   );
   return intelligentTruncate(normalized, charLimit);
 }
 
-/**
- * NEW: Check session token usage
- */
+// Logs the current token usage of an AI session.
 function checkSessionTokens(session, label = "") {
   if (!session) return;
-
   try {
     const tokensSoFar = session.tokensSoFar || 0;
     const tokensLeft = session.tokensLeft || TOKEN_LIMITS.MAX_CONTEXT_TOKENS;
-
     console.log(
       `[NovaMind] ${label} Session tokens: ${tokensSoFar} used, ${tokensLeft} remaining`
     );
-
-    // Warn if getting close to limit
     if (tokensLeft < 500) {
       console.warn(
         `[NovaMind] WARNING: Only ${tokensLeft} tokens left in session!`
       );
     }
-
     return { tokensSoFar, tokensLeft };
   } catch (error) {
     console.warn("[NovaMind] Failed to check session tokens:", error);
@@ -149,9 +124,7 @@ function checkSessionTokens(session, label = "") {
   }
 }
 
-/**
- * Combine multiple contexts with priority and token awareness
- */
+// Combines multiple text sections intelligently, respecting a total character limit.
 function combineContexts(sections, maxTotalLength) {
   const results = [];
   let totalLength = 0;
@@ -160,10 +133,9 @@ function combineContexts(sections, maxTotalLength) {
     if (!section.text) continue;
 
     const available = maxTotalLength - totalLength;
-    if (available <= 100) break; // Need at least 100 chars
+    if (available <= 100) break; // Stop if not enough space left.
 
     let sectionText = section.text;
-
     if (sectionText.length > available) {
       sectionText = intelligentTruncate(sectionText, available);
     }
@@ -172,16 +144,10 @@ function combineContexts(sections, maxTotalLength) {
       label: section.label,
       text: sectionText,
     });
-
     totalLength += sectionText.length;
   }
-
   return results;
 }
-
-// ============================================================================
-// PAPER ANALYSER CLASS (From File 2)
-// ============================================================================
 
 class PaperAnalyser {
   constructor() {
@@ -190,26 +156,20 @@ class PaperAnalyser {
     this.languageModelSession = null;
   }
 
+  // Initializes all available Chrome AI APIs (Summarizer, Writer, LanguageModel).
   async initializeAPIs() {
     try {
       console.log("[NovaMind] Checking API availability...");
-
       if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
         throw new Error("Required Chrome AI APIs not found");
       }
-
       const summarizerAvailability = await Summarizer.availability();
       const writerAvailability = await Writer.availability();
-
-      console.log("[NovaMind] Summarizer:", summarizerAvailability);
-      console.log("[NovaMind] Writer:", writerAvailability);
-
       if (summarizerAvailability === "no" || writerAvailability === "no") {
         throw new Error("Required Chrome AI APIs not available");
       }
 
       // Create Summarizer session
-      console.log("[NovaMind] Creating Summarizer session...");
       this.summarizerSession = await Summarizer.create({
         type: "teaser",
         format: "plain-text",
@@ -226,7 +186,6 @@ class PaperAnalyser {
       console.log("[NovaMind] ✅ Summarizer ready");
 
       // Create Writer session
-      console.log("[NovaMind] Creating Writer session...");
       this.writerSession = await Writer.create({
         tone: "formal",
         format: "plain-text",
@@ -240,16 +199,12 @@ class PaperAnalyser {
       });
       console.log("[NovaMind] ✅ Writer ready");
 
-      // Create LanguageModel session
+      // Create LanguageModel session (if available)
       if (typeof LanguageModel !== "undefined") {
         try {
           const languageModelAvailability = await LanguageModel.availability();
-          console.log("[NovaMind] LanguageModel:", languageModelAvailability);
-
           if (languageModelAvailability !== "no") {
-            console.log("[NovaMind] Creating LanguageModel session...");
             const params = await LanguageModel.params();
-
             this.languageModelSession = await LanguageModel.create({
               systemPrompt: `You are an expert research advisor. Provide specific, actionable research suggestions that build upon the work presented. Be concrete, realistic, and consider practical constraints.`,
               temperature: params.defaultTemperature,
@@ -271,7 +226,6 @@ class PaperAnalyser {
           );
         }
       }
-
       return true;
     } catch (error) {
       console.error("[NovaMind] Failed to initialize APIs:", error);
@@ -279,12 +233,11 @@ class PaperAnalyser {
     }
   }
 
-  // ==========================================================================
-  // ! ! ! UPDATED FUNCTION WITH CHUNKING LOGIC ! ! !
-  // ==========================================================================
+  // Main analysis function, chunks long texts for processing.
   async analysePaper(paperData) {
     console.log("[NovaMind] Starting analysis:", paperData.title);
 
+    // Helper to send progress updates to the popup.
     const sendProgress = async (progress) => {
       try {
         await chrome.storage.local.set({ analysisProgress: progress });
@@ -309,27 +262,13 @@ class PaperAnalyser {
       summary: "",
     };
 
-    console.log("[NovaMind] Input lengths:");
-    console.log("  Abstract:", results.abstract.length, "chars");
-    if (paperData.introductionText) {
-      console.log(
-        "  Introduction:",
-        paperData.introductionText.length,
-        "chars"
-      );
-    }
-    if (paperData.conclusionText) {
-      console.log("  Conclusion:", paperData.conclusionText.length, "chars");
-    }
-
     let totalSteps = 4; // Base: Summary, Findings, Methodology, Gaps
     let successfulSteps = 0;
-
     if (this.writerSession && paperData.introductionText) totalSteps++; // Research Question
     if (this.languageModelSession) totalSteps++; // Trajectories
 
     try {
-      // Step 1: Generate summary (Abstract is usually short, no chunking needed)
+      // Step 1: Generate summary
       sendProgress(20);
       console.log("[NovaMind] Step 1: Summary");
       if (this.summarizerSession) {
@@ -345,18 +284,17 @@ class PaperAnalyser {
         successfulSteps++;
       }
 
-      // Step 2: Extract key findings (Also uses abstract, no chunking needed)
+      // Step 2: Extract key findings
       sendProgress(35);
       console.log("[NovaMind] Step 2: Key findings");
       if (this.writerSession) {
-        // Use abstract ONLY for findings, per user request
+        // Use abstract ONLY for findings.
         const findingsContext = results.abstract;
         const preparedContext = await prepareTextForAPI(
           findingsContext,
           "WRITER",
           this.writerSession
         );
-
         const findingsPrompt = `Extract 2-3 key findings from this paper. List them directly, one per line.
 
 Content:
@@ -368,23 +306,17 @@ ${preparedContext}`;
           .filter((f) => f.trim().length > 10)
           .map((f) => f.replace(/^[-•*\d.]+\s*/, "").trim())
           .slice(0, 3);
-
         successfulSteps++;
-        console.log("[NovaMind] Found", results.keyFindings.length, "findings");
       }
 
-      // ====================================================================
-      // CHUNKING LOGIC FOR INTRODUCTION
-      // ====================================================================
-      // Step 3 (Question) & 4 (Methodology)
+      // Step 3 (Question) & 4 (Methodology) from Introduction
       sendProgress(50);
       console.log("[NovaMind] Step 3/4: Analysing for Q&M...");
       let researchQuestionFound = "";
 
       if (this.writerSession) {
-        // --- LOGIC FIX: Check for intro text *before* processing ---
         if (paperData.introductionText) {
-          // --- 1. TRY INTRODUCTION ---
+          // 1. TRY INTRODUCTION (with chunking)
           console.log("[NovaMind] Analysing Introduction for Q&M...");
           const introText = paperData.introductionText;
           const CHUNK_SIZE = TOKEN_LIMITS.WRITER_INPUT;
@@ -423,10 +355,10 @@ ${preparedContext}`;
             }
           }
           results.researchQuestion = researchQuestionFound;
-          results.methodology = methodologyFound; // This will be "" if "NONE" was returned, which is fine
+          results.methodology = methodologyFound;
           if (researchQuestionFound) successfulSteps++;
         } else {
-          // --- 2. FALLBACK TO ABSTRACT (only if intro text is missing) ---
+          // 2. FALLBACK TO ABSTRACT (only if intro text is missing)
           console.log(
             "[NovaMind] No Introduction text. Using Abstract for Methodology."
           );
@@ -438,31 +370,24 @@ ${preparedContext}`;
           );
         }
         successfulSteps++; // Count methodology step
-        // --- END OF LOGIC FIX ---
       }
 
-      // ====================================================================
-      // CHUNKING LOGIC FOR CONCLUSION
-      // ====================================================================
-      // Step 5: Research gaps from conclusion
+      // Step 5: Research gaps from conclusion (or abstract as fallback)
       sendProgress(75);
       console.log("[NovaMind] Step 5: Research gaps");
       if (this.writerSession) {
-        // --- LOGIC FIX: Set source based on conclusionText existence ---
         let gapSourceText;
         let sourceLabel;
 
         if (paperData.conclusionText) {
-          // --- 1. TRY CONCLUSION ---
+          // 1. TRY CONCLUSION
           gapSourceText = paperData.conclusionText;
           sourceLabel = "Conclusion";
         } else {
-          // --- 2. FALLBACK TO ABSTRACT ---
+          // 2. FALLBACK TO ABSTRACT
           gapSourceText = results.abstract;
           sourceLabel = "Abstract (fallback)";
         }
-        // --- END OF LOGIC FIX ---
-
         console.log(
           `[NovaMind] Analysing ${sourceLabel} for gaps in chunks...`
         );
@@ -470,18 +395,12 @@ ${preparedContext}`;
         const CHUNK_SIZE = TOKEN_LIMITS.WRITER_INPUT;
         let gapsFound = [];
 
+        // Process the source text in chunks.
         for (let i = 0; i < gapSourceText.length; i += CHUNK_SIZE) {
           const chunk = gapSourceText.substring(i, i + CHUNK_SIZE);
-          console.log(
-            `[NovaMind] Processing ${sourceLabel} Chunk ${
-              Math.floor(i / CHUNK_SIZE) + 1
-            }/${Math.ceil(gapSourceText.length / CHUNK_SIZE)}`
-          );
-
           const gapsPrompt = `Identify 2-3 research gaps or limitations from this text. List them directly, one per line. If none are found, respond with only the word "NONE".
           Text:
           ${chunk}`;
-
           const gapsText = await this.writerSession.write(gapsPrompt);
 
           if (gapsText.trim().toUpperCase() !== "NONE") {
@@ -490,67 +409,40 @@ ${preparedContext}`;
               .filter((g) => g.trim().length > 10)
               .map((g) => g.replace(/^[-•*\d.]+\s*/, "").trim());
             gapsFound.push(...parsedGaps);
-            console.log(
-              `[NovaMind] ✅ Found ${parsedGaps.length} gaps in chunk`
-            );
           }
         }
-
         results.researchGaps = [...new Set(gapsFound)].slice(0, 3); // Get unique gaps
         if (results.researchGaps.length > 0) successfulSteps++;
-        console.log(
-          "[NovaMind] Found",
-          results.researchGaps.length,
-          "total unique gaps"
-        );
       }
 
-      // Step 6: Research trajectories (Now uses better, un-truncated data)
+      // Step 6: Research trajectories (from Conclusion or Abstract)
       if (this.languageModelSession) {
         sendProgress(85);
         console.log("[NovaMind] Step 6: Research trajectories");
-
         try {
-          // --- LOGIC FIX: Set source based on conclusionText existence ---
           let trajectorySourceText;
           let sourceLabel;
-
           if (paperData.conclusionText) {
-            // --- 1. TRY CONCLUSION ---
             trajectorySourceText = paperData.conclusionText;
             sourceLabel = "Conclusion";
           } else {
-            // --- 2. FALLBACK TO ABSTRACT ---
             trajectorySourceText = results.abstract;
             sourceLabel = "Abstract (fallback)";
           }
           console.log(`[NovaMind] Using ${sourceLabel} for trajectories...`);
-          // --- END OF LOGIC FIX ---
 
           const contexts = combineContexts(
-            [
-              {
-                label: sourceLabel,
-                text: trajectorySourceText,
-              },
-            ],
+            [{ label: sourceLabel, text: trajectorySourceText }],
             TOKEN_LIMITS.COMBINED_CONTEXT_MAX
           );
-
           let contextText = contexts
             .map((c) => `${c.label}:\n${c.text}`)
             .join("\n\n");
-
           const trajectoryPrompt = `Based on this research, suggest 3-5 specific future research directions.
 
 ${contextText}
 
 List 3-5 concrete, feasible research suggestions:`;
-
-          console.log(
-            `[NovaMind] Trajectory prompt: ${trajectoryPrompt.length} chars`
-          );
-
           // Check tokens if possible
           if (
             typeof this.languageModelSession.countPromptTokens === "function"
@@ -561,61 +453,42 @@ List 3-5 concrete, feasible research suggestions:`;
               );
             console.log(`[NovaMind] Trajectory tokens: ${tokenCount}`);
           }
-
           const trajectoryText = await this.languageModelSession.prompt(
             trajectoryPrompt
           );
           checkSessionTokens(this.languageModelSession, "After trajectories");
 
-          // =================== Bug Fix Maintained ===================
+          // Clean up the model's response.
           results.trajectorySuggestions = trajectoryText
             .split("\n")
             .filter((t) => t.trim().length > 15)
-            // 1. MODIFIED: Added \s* to regex to catch bullets with leading whitespace
             .map((t) => t.replace(/^\s*[-•*\d.]+\s*/, "").trim())
             .filter((t) => !t.toLowerCase().startsWith("here"))
-            // 2. ADDED: New filter to remove the unwanted "Based on..." preamble
             .filter((t) => !t.toLowerCase().startsWith("based on"))
             .slice(0, 5);
-          // =================== End of Bug Fix ===================
-
-          // This step is counted in totalSteps, so increment success
           successfulSteps++;
-
-          console.log(
-            "[NovaMind] Generated",
-            results.trajectorySuggestions.length,
-            "trajectories"
-          );
         } catch (error) {
           console.error("[NovaMind] Trajectories failed:", error);
           results.trajectorySuggestions = [];
         }
       }
 
+      // Calculate confidence based on successful steps.
       results.confidence = Math.round((successfulSteps / totalSteps) * 100);
       console.log(
         "[NovaMind] Analysis complete. Confidence:",
         results.confidence + "%"
       );
-
-      return {
-        success: true,
-        data: results,
-      };
+      return { success: true, data: results };
     } catch (error) {
       console.error("[NovaMind] Analysis error:", error);
-      return {
-        success: false,
-        error: error.message,
-        data: results,
-      };
+      return { success: false, error: error.message, data: results };
     }
   }
 
+  // Cleans up active AI sessions.
   cleanup() {
     console.log("[NovaMind] Cleaning up sessions");
-    // Added checks for session existence before destroying
     if (this.summarizerSession) {
       this.summarizerSession.destroy();
     }
@@ -628,11 +501,7 @@ List 3-5 concrete, feasible research suggestions:`;
   }
 }
 
-// ============================================================================
-// CONNECTION DETECTOR CLASS (From File 1)
-// ============================================================================
-
-// ENHANCED ConnectionDetector - Uses Original Abstracts
+// Detects connections between a new paper and a list of previous papers.
 class ConnectionDetector {
   constructor(languageModelSession) {
     this.languageModelSession = languageModelSession;
@@ -644,7 +513,6 @@ class ConnectionDetector {
       previousPapers.length,
       "previous papers"
     );
-
     if (!this.languageModelSession) {
       console.warn(
         "[NovaMind] ⚠️ LanguageModel not available, skipping connections"
@@ -652,18 +520,12 @@ class ConnectionDetector {
       return [];
     }
 
-    // Take up to 5 most recent papers for comparison
+    // Take up to 5 most recent papers for comparison.
     const papersToCompare = previousPapers.slice(0, 5);
     const connections = [];
 
     for (let i = 0; i < papersToCompare.length; i++) {
       const oldPaper = papersToCompare[i];
-      console.log(
-        `[NovaMind] Comparing with paper ${i + 1}/${
-          papersToCompare.length
-        }: "${oldPaper.title.substring(0, 50)}..."`
-      );
-
       try {
         const connection = await this.comparePapers(newPaper, oldPaper);
         if (connection) {
@@ -684,50 +546,32 @@ class ConnectionDetector {
         );
       }
     }
-
-    console.log(`[NovaMind] Total connections found: ${connections.length}`);
     return connections;
   }
 
+  // Cleans markdown and extra text from a JSON string response.
   cleanJsonString(str) {
-    // Remove markdown code blocks
     str = str.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-
-    // Remove any text before the first {
     const firstBrace = str.indexOf("{");
     if (firstBrace > 0) {
       str = str.substring(firstBrace);
     }
-
-    // Remove any text after the last }
     const lastBrace = str.lastIndexOf("}");
     if (lastBrace !== -1 && lastBrace < str.length - 1) {
       str = str.substring(0, lastBrace + 1);
     }
-
     return str.trim();
   }
 
+  // Compares two papers using the Language Model to find connections.
   async comparePapers(paper1, paper2) {
-    // ENHANCED: Use original abstracts if available, fallback to summaries
+    // Use original abstracts for better comparison quality.
     const paper1Content = paper1.abstract || paper1.summary;
     const paper2Content = paper2.abstract || paper2.summary;
-
-    // Limit to 800 chars to stay within token limits while maximizing content
     const paper1Text = paper1Content.substring(0, 800);
     const paper2Text = paper2Content.substring(0, 800);
 
-    console.log(
-      "[NovaMind] Paper 1 content length:",
-      paper1Text.length,
-      "chars"
-    );
-    console.log(
-      "[NovaMind] Paper 2 content length:",
-      paper2Text.length,
-      "chars"
-    );
-
+    // This prompt is highly structured to force a JSON response and enforce strict rules for what constitutes a "connection".
     const prompt = `Compare these two research papers and identify their relationship. Be STRICT - only identify strong, meaningful connections. Being in the same broad field (e.g., both about "machine learning" or "NLP") is NOT enough for a connection.
 
 PAPER 1 (NEWER):
@@ -778,36 +622,24 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
     try {
       console.log("[NovaMind] Sending enhanced comparison request...");
       const response = await this.languageModelSession.prompt(prompt);
-
-      console.log("[NovaMind] Raw response received");
-      console.log("[NovaMind] Response length:", response.length);
-      console.log("[NovaMind] First 300 chars:", response.substring(0, 300));
-
-      // Clean the response
       const cleanedResponse = this.cleanJsonString(response);
-      console.log("[NovaMind] Cleaned response:", cleanedResponse);
 
       let analysis;
       try {
         analysis = JSON.parse(cleanedResponse);
-        console.log("[NovaMind] ✅ Successfully parsed JSON");
       } catch (parseError) {
-        console.error("[NovaMind] ❌ JSON parse error:", parseError.message);
-        console.error("[NovaMind] Failed to parse:", cleanedResponse);
-
-        // Try manual extraction as fallback
-        console.log("[NovaMind] Attempting manual extraction...");
-        const manualAnalysis = this.manualExtractJson(cleanedResponse);
-        if (manualAnalysis) {
-          console.log("[NovaMind] ✅ Manual extraction successful");
-          analysis = manualAnalysis;
-        } else {
+        // Fallback to manual regex extraction if JSON.parse fails.
+        console.error(
+          "[NovaMind] ❌ JSON parse error, attempting manual extraction..."
+        );
+        analysis = this.manualExtractJson(cleanedResponse);
+        if (!analysis) {
           console.log("[NovaMind] ❌ Manual extraction failed");
           return null;
         }
       }
 
-      // Validate response structure
+      // Validate the parsed object structure.
       if (
         !analysis.hasOwnProperty("hasConnection") ||
         !analysis.hasOwnProperty("connectionType") ||
@@ -818,24 +650,16 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
         return null;
       }
 
-      console.log("[NovaMind] Analysis result:", {
-        hasConnection: analysis.hasConnection,
-        type: analysis.connectionType,
-        strength: analysis.strength,
-        description: analysis.description.substring(0, 50) + "...",
-      });
-
       if (!analysis.hasConnection || analysis.connectionType === "none") {
         return null;
       }
 
-      // Ensure strength is a number between 1-10
       const strength = Math.max(
         1,
         Math.min(10, parseInt(analysis.strength) || 5)
       );
 
-      // STRICT FILTER: Only accept connections with strength >= 7
+      // STRICT FILTER: Only accept connections with strength >= 7.
       if (strength < 7) {
         console.log(
           `[NovaMind] ❌ Connection strength too low (${strength}), filtering out`
@@ -843,27 +667,23 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
         return null;
       }
 
-      const connection = {
+      return {
         paperId: paper2.timestamp,
         paperTitle: paper2.title,
         type: analysis.connectionType,
         strength: strength,
-        description: analysis.description.substring(0, 200), // Limit description length
+        description: analysis.description.substring(0, 200),
         detectedAt: new Date().toISOString(),
       };
-
-      console.log("[NovaMind] Created connection:", connection);
-      return connection;
     } catch (error) {
       console.error("[NovaMind] Error in comparePapers:", error);
-      console.error("[NovaMind] Error stack:", error.stack);
       return null;
     }
   }
 
+  // Fallback parser if JSON.parse fails on the model's output.
   manualExtractJson(text) {
     try {
-      // Try to extract values using regex
       const hasConnectionMatch = text.match(
         /"hasConnection"\s*:\s*(true|false)/i
       );
@@ -886,7 +706,6 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
           description: descriptionMatch[1],
         };
       }
-
       return null;
     } catch (error) {
       console.error("[NovaMind] Manual extraction error:", error);
@@ -894,10 +713,6 @@ If in doubt, mark as "none" with hasConnection: false. Require strength >= 7 for
     }
   }
 }
-
-// ============================================================================
-// SERVICE WORKER LOGIC (From File 1)
-// ============================================================================
 
 // Global analyser instance
 const analyser = new PaperAnalyser();
@@ -910,7 +725,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleAnalysis(request.paperData)
       .then(sendResponse)
       .catch((err) => {
-        console.error("[NovaMind] Message handler error:", err);
         sendResponse({ success: false, error: err.message });
       });
     return true; // Indicates asynchronous response
@@ -918,20 +732,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkAPIs()
       .then(sendResponse)
       .catch((err) => {
-        console.error("[NovaMind] API check error:", err);
         sendResponse({ available: false, error: err.message });
       });
     return true; // Indicates asynchronous response
   }
-  // Allow other message types to be handled synchronously
   return false;
 });
 
+// Orchestrates the full analysis pipeline.
 async function handleAnalysis(paperData) {
   try {
-    console.log("[NovaMind] Handling analysis request");
-
-    // Initialize APIs
+    // Step 1: Initialize APIs
     const initialized = await analyser.initializeAPIs();
     if (!initialized) {
       return {
@@ -941,105 +752,55 @@ async function handleAnalysis(paperData) {
       };
     }
 
-    // Step 1-6: Analyse the paper (using the new, smarter PaperAnalyser)
+    // Step 2: Analyse the paper content
     const result = await analyser.analysePaper(paperData);
-
     if (!result.success) {
       return result;
     }
 
-    // Step 7: Detect connections with previous papers
-    console.log("[NovaMind] === STARTING STEP 7 (Connections) ===");
-
+    // Step 3: Detect connections with previous papers
     if (analyser.languageModelSession) {
-      // Send progress update via storage (more reliable)
-      try {
-        await chrome.storage.local.set({ analysisProgress: 90 });
-        chrome.runtime
-          .sendMessage({
-            action: "analysisProgress",
-            progress: 90,
-          })
-          .catch(() => {});
-      } catch (error) {
-        // Ignore errors
-      }
-
-      console.log(
-        "[NovaMind] Step 7: Detecting connections with previous papers using ORIGINAL ABSTRACTS..."
-      );
-      console.log(
-        "[NovaMind] LanguageModel session exists:",
-        !!analyser.languageModelSession
-      );
+      await chrome.storage.local.set({ analysisProgress: 90 });
+      chrome.runtime
+        .sendMessage({ action: "analysisProgress", progress: 90 })
+        .catch(() => {});
 
       try {
-        // Get previous analyses
         const { analyses = [] } = await chrome.storage.local.get("analyses");
-        console.log(
-          "[NovaMind] Found",
-          analyses.length,
-          "previous analyses in storage"
-        );
-
         if (analyses.length > 0) {
-          console.log("[NovaMind] Creating ConnectionDetector...");
           const detector = new ConnectionDetector(
             analyser.languageModelSession
           );
-
-          console.log("[NovaMind] Starting enhanced connection detection...");
           result.data.connections = await detector.detectConnections(
             result.data,
             analyses
           );
-
-          console.log(
-            "[NovaMind] ✅ Connection detection complete. Found",
-            result.data.connections.length,
-            "connections"
-          );
         } else {
-          console.log("[NovaMind] No previous papers to compare against");
           result.data.connections = [];
         }
       } catch (error) {
         console.error("[NovaMind] ❌ Failed to detect connections:", error);
-        console.error("[NovaMind] Error stack:", error.stack);
         result.data.connections = [];
       }
     } else {
       console.warn(
         "[NovaMind] ⚠️ LanguageModel session not available, skipping connection detection"
       );
-      console.log(
-        "[NovaMind] analyser.languageModelSession is:",
-        analyser.languageModelSession
-      );
       result.data.connections = [];
     }
 
-    console.log("[NovaMind] === STEP 7 COMPLETE ===");
-
-    // Save with bidirectional connections
-    console.log("[NovaMind] Saving analysis with connections...");
+    // Step 4: Save the new analysis and update old papers with new connections.
     await saveAnalysisWithConnections(result.data);
-    console.log("[NovaMind] Analysis saved to storage");
-
     return result;
   } catch (error) {
     console.error("[NovaMind] Handle analysis error:", error);
-    console.error("[NovaMind] Error stack:", error.stack);
-    return {
-      success: false,
-      error: error.message,
-    };
+    return { success: false, error: error.message };
   }
 }
 
+// Checks the availability of all required Chrome AI APIs.
 async function checkAPIs() {
   try {
-    // Check required APIs
     if (typeof Summarizer === "undefined" || typeof Writer === "undefined") {
       return {
         available: false,
@@ -1047,15 +808,12 @@ async function checkAPIs() {
         mode: "unavailable",
       };
     }
-
     const summarizerAvailability = await Summarizer.availability();
     const writerAvailability = await Writer.availability();
-
     let languageModelAvailability = "no";
     if (typeof LanguageModel !== "undefined") {
       languageModelAvailability = await LanguageModel.availability();
     }
-
     const result = {
       available: summarizerAvailability !== "no" && writerAvailability !== "no",
       summarizer: summarizerAvailability,
@@ -1063,64 +821,34 @@ async function checkAPIs() {
       languageModel: languageModelAvailability,
       mode: "real",
     };
-
     console.log("[NovaMind] API check result:", result);
     return result;
   } catch (error) {
     console.error("[NovaMind] API check error:", error);
-    return {
-      available: false,
-      error: error.message,
-      mode: "error",
-    };
+    return { available: false, error: error.message, mode: "error" };
   }
 }
 
+// Saves a new analysis and adds bidirectional links to connected papers.
 async function saveAnalysisWithConnections(analysisData) {
   try {
-    console.log("[NovaMind] Starting save with connections...");
     const { analyses = [] } = await chrome.storage.local.get("analyses");
-
-    console.log("[NovaMind] Current analyses count:", analyses.length);
-    console.log(
-      "[NovaMind] New paper connections:",
-      analysisData.connections?.length || 0
-    );
-
-    // Add the new analysis
     analyses.unshift(analysisData);
 
     // Create bidirectional connections
     if (analysisData.connections && analysisData.connections.length > 0) {
-      console.log("[NovaMind] Creating bidirectional connections...");
-
-      analysisData.connections.forEach((connection, index) => {
-        console.log(
-          `[NovaMind] Processing connection ${index + 1}/${
-            analysisData.connections.length
-          }`
-        );
-
-        // Find the connected paper and add reverse connection
+      analysisData.connections.forEach((connection) => {
+        // Find the connected paper and add the reverse connection.
         const connectedPaper = analyses.find(
           (a) => a.timestamp === connection.paperId
         );
-
         if (connectedPaper) {
-          console.log(
-            "[NovaMind] Found connected paper:",
-            connectedPaper.title.substring(0, 50) + "..."
-          );
-
           if (!connectedPaper.connections) {
             connectedPaper.connections = [];
           }
-
-          // Check if reverse connection already exists
           const reverseExists = connectedPaper.connections.some(
             (c) => c.paperId === analysisData.timestamp
           );
-
           if (!reverseExists) {
             connectedPaper.connections.push({
               paperId: analysisData.timestamp,
@@ -1130,35 +858,18 @@ async function saveAnalysisWithConnections(analysisData) {
               description: connection.description,
               detectedAt: connection.detectedAt,
             });
-            console.log("[NovaMind] Added reverse connection");
-          } else {
-            console.log("[NovaMind] Reverse connection already exists");
           }
-        } else {
-          console.warn(
-            "[NovaMind] Connected paper not found for paperId:",
-            connection.paperId
-          );
         }
       });
-    } else {
-      console.log("[NovaMind] No connections to process");
     }
 
     // Limit to 50 papers
     if (analyses.length > 50) {
-      console.log("[NovaMind] Trimming to 50 papers");
       analyses.length = 50;
     }
-
     await chrome.storage.local.set({ analyses });
-    console.log(
-      "[NovaMind] ✅ Saved analysis with connections, total count:",
-      analyses.length
-    );
   } catch (error) {
-    console.error("[NovaMind] ❌ Failed to save analysis:", error);
-    console.error("[NovaMind] Error stack:", error.stack);
+    console.error("❌ Failed to save analysis:", error);
   }
 }
 
@@ -1169,10 +880,7 @@ chrome.runtime.onSuspend.addListener(() => {
 
 // Handle keyboard commands
 chrome.commands.onCommand.addListener((command) => {
-  console.log("[NovaMind] Command received:", command);
-
   if (command === "open_dashboard") {
-    // Open dashboard in a new tab
     chrome.tabs.create({
       url: chrome.runtime.getURL("dashboard/dashboard.html"),
     });
@@ -1181,43 +889,31 @@ chrome.commands.onCommand.addListener((command) => {
 
 console.log("[NovaMind] Background service worker initialized");
 
-// ============================================================================
-// TEXT ASSISTANT CONTEXT MENU
-// ============================================================================
-
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {
-  // Parent menu item
   chrome.contextMenus.create({
     id: "novamind-assistant",
     title: "NovaMind",
     contexts: ["selection"],
   });
-
-  // Simplify option
   chrome.contextMenus.create({
     id: "simplify-text",
     parentId: "novamind-assistant",
     title: "Simplify",
     contexts: ["selection"],
   });
-
-  // Explain option
   chrome.contextMenus.create({
     id: "explain-text",
     parentId: "novamind-assistant",
     title: "Explain",
     contexts: ["selection"],
   });
-
-  // Ask question option
   chrome.contextMenus.create({
     id: "ask-question",
     parentId: "novamind-assistant",
     title: "Ask a Question",
     contexts: ["selection"],
   });
-
   console.log("[NovaMind] Context menu created");
 });
 
@@ -1225,11 +921,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const selectedText = info.selectionText;
   const mode = info.menuItemId;
-
   if (!selectedText || !mode.includes("-")) return;
-
-  console.log(`[NovaMind] Context menu: ${mode}`);
-  console.log(`[NovaMind] Selected text: ${selectedText.substring(0, 100)}...`);
 
   // Store the selected text and mode for the assistant window
   await chrome.storage.local.set({
@@ -1256,18 +948,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleAssistantRequest(request)
       .then(sendResponse)
       .catch((err) => {
-        console.error("[NovaMind] Assistant error:", err);
         sendResponse({ success: false, error: err.message });
       });
     return true; // Keep channel open for async response
   }
 });
 
+// Routes the assistant's request (Simplify, Explain, Ask) to the correct API.
 async function handleAssistantRequest(request) {
   const { mode, text, question } = request;
-
   try {
-    // Initialize APIs if needed
     const initialized = await analyser.initializeAPIs();
     if (!initialized) {
       return {
@@ -1280,60 +970,40 @@ async function handleAssistantRequest(request) {
 
     // SIMPLIFY - Use Writer API
     if (mode === "simplify-text") {
-      if (!analyser.writerSession) {
-        throw new Error("Writer API not available");
-      }
-
+      if (!analyser.writerSession) throw new Error("Writer API not available");
       const simplifyPrompt = `Simplify the following text to make it easier to understand. Keep the main ideas but use clearer language and shorter sentences:
 
 ${text}`;
-
       result = await analyser.writerSession.write(simplifyPrompt);
     }
-
     // EXPLAIN - Use Language Model API
     else if (mode === "explain-text") {
-      if (!analyser.languageModelSession) {
+      if (!analyser.languageModelSession)
         throw new Error("Language Model API not available");
-      }
-
       const explainPrompt = `Explain the following text in detail. Break down the key concepts and provide context:
 
 ${text}`;
-
       result = await analyser.languageModelSession.prompt(explainPrompt);
     }
-
     // ASK QUESTION - Use Language Model API
     else if (mode === "ask-question") {
-      if (!analyser.languageModelSession) {
+      if (!analyser.languageModelSession)
         throw new Error("Language Model API not available");
-      }
-
-      if (!question || question.trim().length === 0) {
+      if (!question || question.trim().length === 0)
         throw new Error("Please enter a question");
-      }
-
       const askPrompt = `Based on the following text, answer this question: "${question}"
 
 Text:
 ${text}
 
 Answer:`;
-
       result = await analyser.languageModelSession.prompt(askPrompt);
     }
 
-    return {
-      success: true,
-      result: result.trim(),
-    };
+    return { success: true, result: result.trim() };
   } catch (error) {
     console.error("[NovaMind] Assistant processing error:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
+    return { success: false, error: error.message };
   }
 }
 
