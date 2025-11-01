@@ -64,6 +64,9 @@ NovaMind is a Chrome extension that uses Google's built-in AI to analyse researc
 
 - jsPDF: This library is used for writing and generating PDF files.
 
+## 🏛️ License
+MIT License
+
 ## ⚙️ Prerequisites & Installation
 
 This extension relies on the built-in Chrome AI APIs (Gemini Nano), which have specific hardware and software requirements.
