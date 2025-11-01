@@ -1,10 +1,53 @@
-# Research Extension
+# NovaMind
+
+### Transform your browser into an intelligent research partner
+
+NovaMind is a Chrome extension that uses Google's built-in AI to analyse research papers locally on your device. Extract key findings, discover connections between papers and simplify complex academic text. All without sending your data to external servers.
 
 ## 👀 Problem
 
-## 🎯 Solution
+**Reading research papers are overwhelming and time-consuming, specially if you are a beginner:**
 
-## 🎨 Design
+- Takes 2-4 hours to thoroughly read and understand a single paper.
+
+- Difficult to spot research opportunities and limitations.
+
+- Dense academic writing slows comprehension.
+
+## ✨ Key Features
+
+**Smart Paper Analysis**
+
+- Auto-extract: Summary, key findings, methodology, research gaps, future directions
+- Supported in arXiv.org and IEEE Xplore
+- Works with both HTML and PDF papers
+- 30-60 second processing time
+- Generate PDF reports of any analysis
+
+**Connection Detection**
+
+- Automatically finds relationships between your analysed papers
+- Descriptions of how papers relate
+
+**Text Assistant**
+
+- Simplify complex text
+- Explain concepts
+- Ask questions about selected text
+- Save highlights
+
+**Dashboard**
+
+- Centralised hub for all analyses
+- Highlights panel
+
+## 🌟 Google's built-in Chrome AI APIs Features
+
+- **Absolute Privacy:** Your research data and analyses never leave your computer. No data is sent to an external server.
+
+- **Works Offline:** Analyse papers, extract insights and browse your library even without an internet connection.
+
+- **Zero Cost:** No API keys, subscriptions, or usage fees. All features are completely free.
 
 ## 💻 Technologies
 
@@ -12,20 +55,82 @@
 ![CSS](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 
-## 📚 Lessons Learned
+## 📚 Key Libraries
 
-### Chrome Extension
+- PDF.js: This library is used for reading and parsing PDF files directly in the browser.
 
-- Manifest File: describes the extension's capabilities and configuration.
--
+- jsPDF: This library is used for writing and generating PDF files.
 
-### Chrome built-in AI APIs (Prompt AI)
+## ⚙️ Prerequisites & Installation
 
-_System Requirements:_
+This extension relies on the built-in Chrome AI APIs (Gemini Nano), which have specific hardware and software requirements.
 
-- GPU: 4GB VRAM
-- Storage: 22GB free space for model download
+### Prerequisites
 
-- Download Chrome Canary
-- Enable Feature Flags `chrome://flags`
-- Install the Foundational Model `chrome://on-device-internals`
+1. Hardware:
+
+   - GPU: A device with at least 4GB of VRAM.
+
+   - Storage: At least 22GB of free space for the on-device AI model download.
+
+2. Browser:
+
+   - Chrome Canary or Chrome Dev.
+
+### Installation & Setup
+
+1. Enable AI Feature Flags:
+
+   - Open your browser and navigate to chrome://flags.
+
+   - Search for and Enable all flags related to `Writer APi` `Summarization API` `Rewriter API` `Prompt API`.
+
+   - Relaunch your browser.
+
+2. Install the On-Device Model:
+
+   - Navigate to `chrome://on-device-internals`.
+
+   - Find the section for the `On-Device Foundation Model`.
+
+   - Click `Download` or `Install`. This is a large download and may take a significant amount of time. Wait for it to complete.
+
+3. Install the NovaMind Extension:
+
+   - Download or clone this project repository to your local machine.
+
+   - Navigate to `chrome://extensions`.
+
+   - Enable `Developer mode`.
+
+   - Click the `Load unpacked` button.
+
+   - Select the folder where you downloaded the project.
+
+## ⚠️ Troubleshooting
+
+**Analyse Current Page button is disabled.**
+
+- This is intentional. The button only activates when you are on a webpage that the extension recognizes as a research paper (arxiv.org or ieeexplore.ieee.org).
+
+- _Solution_: Navigate to a specific paper's page on a supported site. If you are on a supported page, try refreshing.
+
+**Popup shows "Limited" or "Error" status.**
+
+- This means the on-device AI APIs are not available.
+
+- _Solution_: Carefully follow all steps in the section.
+
+  - Confirm your computer meets the hardware requirements (4GB VRAM, 22GB free space).
+
+  - Go to `chrome://on-device-internals` and confirm the Gemini Nano model is fully downloaded and installed.
+
+  - Go to `chrome://flags` and ensure the AI-related flags are Enabled.
+
+**Analysis fails or takes a long time.**
+
+- PDF analysis is complex and can be slow for very large files.
+
+- The very first analysis after an API error may fail.
+
+- _Solution_: Try refreshing the page and running the analysis again. If a PDF fails, try to find the HTML (abstract) version of the paper.
