@@ -140,3 +140,18 @@ This extension relies on the built-in Chrome AI APIs (Gemini Nano), which have s
 - The very first analysis after an API error may fail.
 
 - _Solution_: Try refreshing the page and running the analysis again. If a PDF fails, try to find the HTML (abstract) version of the paper.
+
+## 🚀 Next Steps
+
+- **Support for more research sites:** Expand compatibility beyond arXiv and IEEE Xplore to include other popular academic databases and journals.
+
+- **Mindmap Visualisation:** Create a visual, interactive mindmap to explore the connections discovered between analysed papers.
+
+- **Custom Note-Taking:** Allow users to add their own personal notes and thoughts to each paper analysis.
+
+- **Image-based Assistant:** Enable the AI Assistant to analyze and answer questions about figures, graphs, and images within a paper.
+
+- **Data Backup & Restore:** Add a feature to back up the local database of analyses and highlights to a file and restore it, preventing data loss.
+
+- **Detailed Connection Analysis:** Enhance the connection feature to provide more detailed explanations of how and why two papers are related.
+
