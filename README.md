@@ -1,3 +1,6 @@
+<img width="700" height="674" alt="Logo" src="https://github.com/user-attachments/assets/e2812dfe-4d86-4290-ab86-aef7abcd16a5" />
+
+
 # NovaMind
 
 ### Transform your browser into an intelligent research partner
@@ -111,7 +114,7 @@ This extension relies on the built-in Chrome AI APIs (Gemini Nano), which have s
 
 **Analyse Current Page button is disabled.**
 
-- This is intentional. The button only activates when you are on a webpage that the extension recognizes as a research paper (arxiv.org or ieeexplore.ieee.org).
+- This is intentional. The button only activates when you are on a webpage that the extension recognises as a research paper (arxiv.org or ieeexplore.ieee.org).
 
 - _Solution_: Navigate to a specific paper's page on a supported site. If you are on a supported page, try refreshing.
 
