@@ -605,7 +605,8 @@ class ConnectionDetector {
       return null;
     }
 
-    const prompt = `You are a research analyst. Your task is to compare two paper summaries and identify if they share a specific, meaningful connection.
+    const prompt = `You are an expert research analyst comparing two academic papers. 
+Your goal is to detect whether they share a *specific, directional, or conceptual relationship* — not just a broad thematic overlap.
 
 PAPER 1 SUMMARY:
 ${summary1}
@@ -616,16 +617,25 @@ ${summary2}
 ---
 RULES FOR YOUR RESPONSE:
 
-1.  **BE STRICT:** Do NOT identify a connection if they just share a broad field (e.g., "both about AI" or "both are about healthcare"). This is not a meaningful connection.
+1. **Reject vague overlaps.** Ignore general similarities such as "both use AI" or "both improve performance."  
+   Only report a connection if there is a *clear relationship* such as:
+   - One paper builds on, extends, or improves a method introduced by the other.  
+   - They apply similar techniques to the same domains or problems.  
+   - They offer contrasting or competing solutions to the same research question.  
+   - They analyze the same dataset, model family, or limitation from different perspectives.  
 
-2.  **FIND THE LINK:** Look for a shared *specific* problem, a niche concept, a shared theme, or a problem-solution relationship.
+2. **Be directional if possible.** Prefer statements like:  
+   - “Paper 2 validates the theoretical claims of Paper 1 using a new dataset.”  
+   - “Paper 1 introduces a framework that Paper 2 later applies to robotics.”  
 
-3.  **YOUR RESPONSE:**
-      * If a specific, meaningful link is found: Respond with a single, concise sentence that explains the shared theme. Start this sentence with "Connection:"
-        * *Good Example: "Connection: Both papers discuss the problem of data fragmentation in scientific research, but from different perspectives."*
-    * If no specific, meaningful link is found (or the link is too broad): Respond with ONLY the text "No significant connection."
+3. **Be concise and factual.** Avoid vague terms such as "improve efficiency," "in complex systems," or "both explore."  
 
-4.  **LENGTH LIMIT:** Your response, if a connection is found, must not exceed 500 characters.
+4.  **YOUR RESPONSE:**
+    * If a specific *relationship* is found: Respond with a single, concise sentence that explains this relationship. Start this sentence with "Connection:"
+    * If no specific *relationship* is found (or the link is just a shared topic): Respond with ONLY the text "No significant connection."
+
+5.  **LENGTH LIMIT:** Your response, if a connection is found, must not exceed 500 characters.
+
 ---
 Begin Analysis:`;
 
