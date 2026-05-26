@@ -1,4 +1,4 @@
-<img width="700" height="674" alt="Logo" src="https://github.com/user-attachments/assets/e2812dfe-4d86-4290-ab86-aef7abcd16a5" />
+
 
 
 # NovaMind
